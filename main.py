@@ -376,19 +376,36 @@ class MetingPlugin(Star):
         download_success = False
         try:
             async with self._download_semaphore:
-                async with self._http_session.get(url, allow_redirects=False) as resp:
-                    if resp.status != 200:
+                async with self._http_session.get(url) as resp:
+                    if resp.status not in (200, 302, 301, 307, 308):
                         logger.error(f"下载歌曲失败，状态码: {resp.status}")
                         raise Exception(f"下载失败，状态码: {resp.status}")
 
-                    content_type = resp.headers.get("Content-Type", "")
+                    actual_resp = resp
+                    if resp.status in (302, 301, 307, 308):
+                        redirect_url = resp.headers.get("Location", "")
+                        if not redirect_url:
+                            logger.error("重定向响应缺少Location头")
+                            raise Exception("下载失败，重定向地址无效")
+
+                        if not self._validate_url(redirect_url):
+                            logger.error(f"重定向到不安全的URL: {redirect_url}")
+                            raise Exception("下载失败，重定向地址不安全")
+
+                        logger.info(f"跟随重定向: {redirect_url}")
+                        actual_resp = await self._http_session.get(redirect_url)
+                        if actual_resp.status != 200:
+                            logger.error(f"下载歌曲失败，状态码: {actual_resp.status}")
+                            raise Exception(f"下载失败，状态码: {actual_resp.status}")
+
+                    content_type = actual_resp.headers.get("Content-Type", "")
                     if not self._is_audio_content(content_type):
                         logger.warning(f"返回的 Content-Type: {content_type}")
                         raise Exception("下载失败，文件格式不支持")
 
                     total_size = 0
                     with open(temp_file, "wb") as f:
-                        async for chunk in resp.content.iter_chunked(CHUNK_SIZE):
+                        async for chunk in actual_resp.content.iter_chunked(CHUNK_SIZE):
                             f.write(chunk)
                             total_size += len(chunk)
                             if total_size > MAX_FILE_SIZE:
@@ -430,6 +447,41 @@ class MetingPlugin(Star):
             "application/x-mpegurl",
         )
 
+    def _split_audio_segments(self, audio, segment_ms: int):
+        """分割音频为多个片段
+
+        Args:
+            audio: AudioSegment 对象
+            segment_ms: 每段的毫秒数
+
+        Returns:
+            list: 音频片段列表
+        """
+        total_duration = len(audio)
+        segments = []
+        for start in range(0, total_duration, segment_ms):
+            end = min(start + segment_ms, total_duration)
+            segment = audio[start:end]
+            segments.append(segment)
+        return segments
+
+    async def _export_segment(self, segment, segment_file: str) -> bool:
+        """导出音频片段到文件
+
+        Args:
+            segment: AudioSegment 片段
+            segment_file: 目标文件路径
+
+        Returns:
+            bool: 是否成功
+        """
+        try:
+            segment.export(segment_file, format="wav")
+            return True
+        except Exception as e:
+            logger.error(f"导出音频片段失败: {e}")
+            return False
+
     async def _split_and_send_audio(self, event: AstrMessageEvent, temp_file: str):
         """分割音频并发送
 
@@ -459,27 +511,24 @@ class MetingPlugin(Star):
             segment_ms = SEGMENT_DURATION * 1000
             logger.debug(f"音频总时长: {total_duration}ms, 分段时长: {segment_ms}ms")
 
-            segments = []
-            for start in range(0, total_duration, segment_ms):
-                end = min(start + segment_ms, total_duration)
-                segment = audio[start:end]
-                segments.append(segment)
-
+            segments = self._split_audio_segments(audio, segment_ms)
             base_name = os.path.splitext(os.path.basename(temp_file))[0]
 
+            success_count = 0
             for idx, segment in enumerate(segments, 1):
                 segment_file = os.path.join(
                     tempfile.gettempdir(),
                     f"{base_name}_segment_{idx}_{uuid.uuid4()}.wav",
                 )
+
+                if not await self._export_segment(segment, segment_file):
+                    continue
+
                 try:
-                    logger.debug(f"导出音频片段 {idx} 到: {segment_file}")
-                    segment.export(segment_file, format="wav")
-                    logger.debug(f"创建 Record 对象: {segment_file}")
                     record = Record.fromFileSystem(segment_file)
-                    logger.debug(f"发送语音片段 {idx}")
                     yield event.chain_result([record])
                     await asyncio.sleep(SEND_INTERVAL)
+                    success_count += 1
                 except Exception as e:
                     logger.error(f"发送语音片段 {idx} 时发生错误: {e}")
                     yield event.plain_result(f"发送语音片段 {idx} 失败")
@@ -487,7 +536,8 @@ class MetingPlugin(Star):
                     if os.path.exists(segment_file):
                         os.remove(segment_file)
 
-            yield event.plain_result("歌曲播放完成")
+            if success_count > 0:
+                yield event.plain_result("歌曲播放完成")
 
         except Exception as e:
             logger.error(f"分割音频时发生错误: {e}")
