@@ -42,7 +42,7 @@ AUDIO_CONTENT_TYPES = {
 AUDIO_EXTENSIONS = {".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac", ".wma"}
 
 
-@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.0.6")
+@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.0.7")
 class MetingPlugin(Star):
     """MetingAPI 点歌插件
 
@@ -454,77 +454,87 @@ class MetingPlugin(Star):
         )
 
         download_success = False
-        try:
-            async with self._download_semaphore:
-                async with self._http_session.get(url, allow_redirects=False) as resp:
-                    if resp.status not in (200, 302, 301, 307, 308):
-                        logger.error(f"下载歌曲失败，状态码: {resp.status}")
-                        raise Exception(f"下载失败，状态码: {resp.status}")
+        max_retries = 3
+        retry_count = 0
 
-                    actual_resp = resp
-                    if resp.status in (302, 301, 307, 308):
-                        redirect_url = resp.headers.get("Location", "")
-                        if not redirect_url:
-                            logger.error("重定向响应缺少Location头")
-                            raise Exception("下载失败，重定向地址无效")
+        while retry_count < max_retries:
+            try:
+                async with self._download_semaphore:
+                    logger.debug(
+                        f"开始下载歌曲 (尝试 {retry_count + 1}/{max_retries}): {url}"
+                    )
 
-                        if not self._validate_url(redirect_url):
-                            logger.error(f"重定向到不安全的URL: {redirect_url}")
+                    async with self._http_session.get(
+                        url, allow_redirects=True
+                    ) as resp:
+                        if resp.status != 200:
+                            logger.error(f"下载歌曲失败，状态码: {resp.status}")
+                            raise Exception(f"下载失败，状态码: {resp.status}")
+
+                        final_url = str(resp.url)
+                        if not self._validate_url(final_url):
+                            logger.error(f"最终重定向到不安全的URL: {final_url}")
                             raise Exception("下载失败，重定向地址不安全")
 
-                        logger.info(f"跟随重定向: {redirect_url}")
-                        async with self._http_session.get(
-                            redirect_url
-                        ) as redirect_resp:
-                            if redirect_resp.status != 200:
-                                logger.error(
-                                    f"下载歌曲失败，状态码: {redirect_resp.status}"
-                                )
-                                raise Exception(
-                                    f"下载失败，状态码: {redirect_resp.status}"
-                                )
-                            actual_resp = redirect_resp
+                        logger.debug(f"最终下载URL: {final_url}")
 
-                    content_type = actual_resp.headers.get("Content-Type", "")
-                    if not self._is_audio_content(content_type):
-                        logger.warning(f"返回的 Content-Type: {content_type}")
-                        raise Exception("下载失败，文件格式不支持")
+                        content_type = resp.headers.get("Content-Type", "")
+                        if not self._is_audio_content(content_type):
+                            logger.warning(f"返回的 Content-Type: {content_type}")
+                            raise Exception("下载失败，文件格式不支持")
 
-                    url_path = urlparse(url).path
-                    file_ext = os.path.splitext(url_path)[1].lower()
-                    if file_ext and file_ext not in AUDIO_EXTENSIONS:
-                        logger.warning(f"URL 文件扩展名: {file_ext}")
-                        raise Exception("下载失败，文件格式不支持")
+                        url_path = urlparse(final_url).path
+                        file_ext = os.path.splitext(url_path)[1].lower()
+                        if file_ext and file_ext not in AUDIO_EXTENSIONS:
+                            logger.warning(f"URL 文件扩展名: {file_ext}")
+                            raise Exception("下载失败，文件格式不支持")
 
-                    total_size = 0
-                    with open(temp_file, "wb") as f:
-                        async for chunk in actual_resp.content.iter_chunked(CHUNK_SIZE):
-                            f.write(chunk)
-                            total_size += len(chunk)
-                            if total_size > MAX_FILE_SIZE:
-                                logger.error(f"文件过大，已超过 {MAX_FILE_SIZE} 字节")
-                                raise Exception("下载失败，文件过大")
+                        total_size = 0
+                        with open(temp_file, "wb") as f:
+                            try:
+                                async for chunk in resp.content.iter_chunked(
+                                    CHUNK_SIZE
+                                ):
+                                    f.write(chunk)
+                                    total_size += len(chunk)
+                                    if total_size > MAX_FILE_SIZE:
+                                        logger.error(
+                                            f"文件过大，已超过 {MAX_FILE_SIZE} 字节"
+                                        )
+                                        raise Exception("下载失败，文件过大")
+                            except aiohttp.ClientPayloadError as e:
+                                logger.error(f"读取响应内容时发生错误: {e}")
+                                raise Exception("下载失败，连接中断")
 
-                    file_size = os.path.getsize(temp_file)
-                    if file_size == 0:
-                        logger.error("下载的歌曲文件为空")
-                        raise Exception("下载失败，文件为空")
+                        file_size = os.path.getsize(temp_file)
+                        if file_size == 0:
+                            logger.error("下载的歌曲文件为空")
+                            raise Exception("下载失败，文件为空")
 
-                    download_success = True
-                    return temp_file
+                        logger.info(f"歌曲下载成功，文件大小: {file_size} 字节")
+                        download_success = True
+                        return temp_file
 
-        except asyncio.CancelledError:
-            logger.info("下载任务被取消")
-            raise
-        except Exception as e:
-            logger.error(f"下载歌曲时发生错误: {e}")
-            raise
-        finally:
-            if not download_success and os.path.exists(temp_file):
-                try:
-                    os.remove(temp_file)
-                except Exception:
-                    pass
+            except (aiohttp.ClientError, aiohttp.ClientPayloadError) as e:
+                retry_count += 1
+                logger.error(
+                    f"下载歌曲时网络错误 (尝试 {retry_count}/{max_retries}): {e}"
+                )
+                if retry_count >= max_retries:
+                    raise Exception(f"下载失败，网络错误: {e}")
+                await asyncio.sleep(1)
+            except Exception as e:
+                logger.error(f"下载歌曲时发生错误: {e}")
+                raise
+            finally:
+                if not download_success and os.path.exists(temp_file):
+                    try:
+                        os.remove(temp_file)
+                        logger.debug("清理临时文件")
+                    except Exception:
+                        pass
+
+        return None
 
     def _is_audio_content(self, content_type: str) -> bool:
         """判断 Content-Type 是否为音频
