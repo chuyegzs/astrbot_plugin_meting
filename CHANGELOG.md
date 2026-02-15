@@ -1,5 +1,25 @@
 # 更新日志
 
+## 1.0.8 (2025-02-15)
+
+### 修复
+- 修复socket.getaddrinfo同步阻塞问题，改为异步DNS解析
+- 修复SSRF TOCTOU/DNS Rebinding风险，添加逐跳URL验证
+- 修复重定向链路安全问题，手动逐跳处理并校验
+- 修复临时文件后缀问题，根据Content-Type推断正确后缀
+- 修复AudioSegment.converter并发干扰，使用锁保护
+- 修复API响应结构缺少健壮性校验问题
+
+### 改进
+- 添加惰性初始化机制，确保HTTP session可用
+- 添加自定义异常类型（DownloadError, UnsafeURLError等）
+- 改进URL校验函数，返回具体失败原因
+- 改进音频格式判断，允许application/octet-stream
+- 添加音频解码验证，失败时给出友好提示
+- 将关键行为参数纳入插件配置（分段时长、发送间隔、最大文件大小）
+- 改进异常处理，保留因果链（raise ... from e）
+- 添加更详细的错误日志（包含URL、状态码等关键信息）
+
 ## 1.0.7 (2025-02-15)
 
 ### 修复

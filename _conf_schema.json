@@ -17,5 +17,29 @@
     "default": 10,
     "minimum": 5,
     "maximum": 30
+  },
+  "segment_duration": {
+    "description": "语音分段时长（秒）",
+    "type": "int",
+    "hint": "每条语音消息的最大时长，范围：30-300秒，默认120秒",
+    "default": 120,
+    "minimum": 30,
+    "maximum": 300
+  },
+  "send_interval": {
+    "description": "发送间隔（秒）",
+    "type": "float",
+    "hint": "发送语音片段之间的间隔时间，范围：0-10秒，默认1秒",
+    "default": 1.0,
+    "minimum": 0,
+    "maximum": 10
+  },
+  "max_file_size": {
+    "description": "最大文件大小（MB）",
+    "type": "int",
+    "hint": "下载歌曲的最大文件大小，范围：10-200MB，默认50MB",
+    "default": 50,
+    "minimum": 10,
+    "maximum": 200
   }
 }
