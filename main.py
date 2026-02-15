@@ -19,7 +19,7 @@ SOURCE_DISPLAY = {
     "kuwo": "酷我",
 }
 
-REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=60)
+REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=120)
 SEGMENT_DURATION = 120
 CHUNK_SIZE = 8192
 SEND_INTERVAL = 1
@@ -27,7 +27,7 @@ MAX_FILE_SIZE = 50 * 1024 * 1024
 MAX_SESSION_AGE = 3600
 
 
-@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.0.4")
+@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.0.5")
 class MetingPlugin(Star):
     """MetingAPI 点歌插件
 
@@ -42,11 +42,15 @@ class MetingPlugin(Star):
         self.session_timestamps = {}
         self._http_session = None
         self._ffmpeg_path = self._find_ffmpeg()
+        self._cleanup_task = None
+        self._download_semaphore = asyncio.Semaphore(3)
 
     async def initialize(self):
         """插件初始化"""
         logger.info("MetingAPI 点歌插件已初始化")
         self._http_session = aiohttp.ClientSession(timeout=REQUEST_TIMEOUT)
+
+        self._cleanup_task = asyncio.create_task(self._periodic_cleanup())
 
     def _find_ffmpeg(self) -> str:
         """查找 FFmpeg 路径
@@ -127,14 +131,26 @@ class MetingPlugin(Star):
             if parsed.scheme not in ("http", "https"):
                 return False
             hostname = parsed.hostname or ""
-            if hostname in ("localhost", "127.0.0.1", "::1"):
+            if hostname in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
                 return False
-            if (
-                hostname.startswith("192.168.")
-                or hostname.startswith("10.")
-                or hostname.startswith("172.")
-            ):
-                return False
+
+            parts = hostname.split(".")
+            if len(parts) == 4:
+                try:
+                    first_octet = int(parts[0])
+                    second_octet = int(parts[1])
+
+                    if first_octet == 10:
+                        return False
+                    if first_octet == 172 and 16 <= second_octet <= 31:
+                        return False
+                    if first_octet == 192 and second_octet == 168:
+                        return False
+                    if first_octet == 169 and second_octet == 254:
+                        return False
+                except ValueError:
+                    pass
+
             return True
         except Exception:
             return False
@@ -154,6 +170,19 @@ class MetingPlugin(Star):
             self.last_search_results.pop(sid, None)
             self.session_timestamps.pop(sid, None)
 
+    async def _periodic_cleanup(self):
+        """定期清理过期的会话状态"""
+
+        while True:
+            try:
+                await asyncio.sleep(3600)
+                self._cleanup_old_sessions()
+                logger.debug("定期清理完成")
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"定期清理时发生错误: {e}")
+
     def _update_session_timestamp(self, session_id: str):
         """更新会话时间戳
 
@@ -170,6 +199,7 @@ class MetingPlugin(Star):
         """切换当前会话的音源为QQ音乐"""
         session_id = event.unified_msg_origin
         self.set_session_source(session_id, "tencent")
+        self._update_session_timestamp(session_id)
         yield event.plain_result("已切换音源为QQ音乐")
 
     @filter.command("切换网易云")
@@ -177,6 +207,7 @@ class MetingPlugin(Star):
         """切换当前会话的音源为网易云"""
         session_id = event.unified_msg_origin
         self.set_session_source(session_id, "netease")
+        self._update_session_timestamp(session_id)
         yield event.plain_result("已切换音源为网易云")
 
     @filter.command("切换酷狗")
@@ -184,6 +215,7 @@ class MetingPlugin(Star):
         """切换当前会话的音源为酷狗"""
         session_id = event.unified_msg_origin
         self.set_session_source(session_id, "kugou")
+        self._update_session_timestamp(session_id)
         yield event.plain_result("已切换音源为酷狗")
 
     @filter.command("切换酷我")
@@ -191,6 +223,7 @@ class MetingPlugin(Star):
         """切换当前会话的音源为酷我"""
         session_id = event.unified_msg_origin
         self.set_session_source(session_id, "kuwo")
+        self._update_session_timestamp(session_id)
         yield event.plain_result("已切换音源为酷我")
 
     @filter.command("点歌")
@@ -200,7 +233,11 @@ class MetingPlugin(Star):
         Args:
             event: 消息事件
         """
-        keyword = event.get_message_str().replace("点歌", "").strip()
+        message_str = event.get_message_str().strip()
+        if message_str.startswith("点歌"):
+            keyword = message_str[2:].strip()
+        else:
+            keyword = message_str
         if not keyword:
             yield event.plain_result("请输入要搜索的歌曲名称，例如：点歌一期一会")
             return
@@ -212,6 +249,11 @@ class MetingPlugin(Star):
 
         session_id = event.unified_msg_origin
         source = self.get_session_source(session_id)
+
+        if not self._http_session:
+            logger.error("HTTP session 未初始化")
+            yield event.plain_result("插件未正确初始化，请重启插件")
+            return
 
         try:
             params = {"server": source, "type": "search", "id": keyword}
@@ -260,16 +302,10 @@ class MetingPlugin(Star):
         Args:
             event: 消息事件
         """
-        import re
-
         message_str = event.get_message_str().strip()
-        match = re.match(r"^点歌(\d+)$", message_str)
-        if not match:
-            return
-
         try:
-            index = int(match.group(1))
-        except ValueError:
+            index = int(message_str[2:])
+        except (ValueError, IndexError):
             return
         session_id = event.unified_msg_origin
 
@@ -308,12 +344,13 @@ class MetingPlugin(Star):
             async for result in self._split_and_send_audio(event, temp_file):
                 yield result
 
-        except aiohttp.ClientError as e:
-            logger.error(f"下载歌曲时网络错误: {e}")
-            yield event.plain_result("下载失败，请检查网络连接")
         except Exception as e:
-            logger.error(f"播放歌曲时发生错误: {e}")
-            yield event.plain_result("播放失败，请稍后重试")
+            error_msg = str(e)
+            if "下载失败" in error_msg:
+                yield event.plain_result(error_msg)
+            else:
+                logger.error(f"播放歌曲时发生错误: {e}")
+                yield event.plain_result("播放失败，请稍后重试")
 
     async def _download_song(self, url: str, sender_id: str) -> str:
         """下载歌曲文件
@@ -325,43 +362,56 @@ class MetingPlugin(Star):
         Returns:
             str: 临时文件路径，失败返回 None
         """
+        if not self._http_session:
+            logger.error("HTTP session 未初始化")
+            return None
+
         temp_dir = tempfile.gettempdir()
+
+        safe_sender_id = "".join(c for c in str(sender_id) if c.isalnum() or c in "._-")
         temp_file = os.path.join(
-            temp_dir, f"meting_song_{sender_id}_{uuid.uuid4()}.mp3"
+            temp_dir, f"meting_song_{safe_sender_id}_{uuid.uuid4()}.mp3"
         )
 
+        download_success = False
         try:
-            async with self._http_session.get(url) as resp:
-                if resp.status != 200:
-                    logger.error(f"下载歌曲失败，状态码: {resp.status}")
-                    return None
+            async with self._download_semaphore:
+                async with self._http_session.get(url, allow_redirects=False) as resp:
+                    if resp.status != 200:
+                        logger.error(f"下载歌曲失败，状态码: {resp.status}")
+                        raise Exception(f"下载失败，状态码: {resp.status}")
 
-                content_type = resp.headers.get("Content-Type", "")
-                if not self._is_audio_content(content_type):
-                    logger.warning(f"返回的 Content-Type: {content_type}")
-                    return None
+                    content_type = resp.headers.get("Content-Type", "")
+                    if not self._is_audio_content(content_type):
+                        logger.warning(f"返回的 Content-Type: {content_type}")
+                        raise Exception("下载失败，文件格式不支持")
 
-                total_size = 0
-                with open(temp_file, "wb") as f:
-                    async for chunk in resp.content.iter_chunked(CHUNK_SIZE):
-                        f.write(chunk)
-                        total_size += len(chunk)
-                        if total_size > MAX_FILE_SIZE:
-                            logger.error(f"文件过大，已超过 {MAX_FILE_SIZE} 字节")
-                            return None
+                    total_size = 0
+                    with open(temp_file, "wb") as f:
+                        async for chunk in resp.content.iter_chunked(CHUNK_SIZE):
+                            f.write(chunk)
+                            total_size += len(chunk)
+                            if total_size > MAX_FILE_SIZE:
+                                logger.error(f"文件过大，已超过 {MAX_FILE_SIZE} 字节")
+                                raise Exception("下载失败，文件过大")
 
-                file_size = os.path.getsize(temp_file)
-                if file_size == 0:
-                    logger.error("下载的歌曲文件为空")
-                    return None
+                    file_size = os.path.getsize(temp_file)
+                    if file_size == 0:
+                        logger.error("下载的歌曲文件为空")
+                        raise Exception("下载失败，文件为空")
 
-                return temp_file
+                    download_success = True
+                    return temp_file
 
         except Exception as e:
             logger.error(f"下载歌曲时发生错误: {e}")
-            if os.path.exists(temp_file):
-                os.remove(temp_file)
-            return None
+            raise
+        finally:
+            if not download_success and os.path.exists(temp_file):
+                try:
+                    os.remove(temp_file)
+                except Exception:
+                    pass
 
     def _is_audio_content(self, content_type: str) -> bool:
         """判断 Content-Type 是否为音频
@@ -373,7 +423,7 @@ class MetingPlugin(Star):
             bool: 是否为音频
         """
         if not content_type:
-            return True
+            return False
         content_type_lower = content_type.lower()
         return "audio" in content_type_lower or content_type_lower in (
             "application/octet-stream",
@@ -403,11 +453,11 @@ class MetingPlugin(Star):
             return
 
         try:
-            logger.info(f"开始处理音频文件: {temp_file}")
+            logger.debug(f"开始处理音频文件: {temp_file}")
             audio = AudioSegment.from_file(temp_file)
             total_duration = len(audio)
             segment_ms = SEGMENT_DURATION * 1000
-            logger.info(f"音频总时长: {total_duration}ms, 分段时长: {segment_ms}ms")
+            logger.debug(f"音频总时长: {total_duration}ms, 分段时长: {segment_ms}ms")
 
             segments = []
             for start in range(0, total_duration, segment_ms):
@@ -423,11 +473,11 @@ class MetingPlugin(Star):
                     f"{base_name}_segment_{idx}_{uuid.uuid4()}.wav",
                 )
                 try:
-                    logger.info(f"导出音频片段 {idx} 到: {segment_file}")
+                    logger.debug(f"导出音频片段 {idx} 到: {segment_file}")
                     segment.export(segment_file, format="wav")
-                    logger.info(f"创建 Record 对象: {segment_file}")
+                    logger.debug(f"创建 Record 对象: {segment_file}")
                     record = Record.fromFileSystem(segment_file)
-                    logger.info(f"发送语音片段 {idx}")
+                    logger.debug(f"发送语音片段 {idx}")
                     yield event.chain_result([record])
                     await asyncio.sleep(SEND_INTERVAL)
                 except Exception as e:
@@ -448,5 +498,12 @@ class MetingPlugin(Star):
 
     async def terminate(self):
         """插件终止时清理资源"""
+        if self._cleanup_task:
+            self._cleanup_task.cancel()
+            try:
+                await self._cleanup_task
+            except asyncio.CancelledError:
+                pass
+
         if self._http_session:
             await self._http_session.close()
