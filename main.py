@@ -194,13 +194,14 @@ class MetingPlugin(Star):
         yield event.plain_result("已切换音源为酷我")
 
     @filter.command("点歌")
-    async def search_song(self, event: AstrMessageEvent):
+    async def search_song(self, event: AstrMessageEvent, keyword: str = ""):
         """搜索歌曲，使用当前会话的音源
 
         Args:
             event: 消息事件
+            keyword: 搜索关键词
         """
-        keyword = event.get_message_str().replace("点歌", "").strip()
+        keyword = keyword.strip()
         if not keyword:
             yield event.plain_result("请输入要搜索的歌曲名称，例如：点歌一期一会")
             return
@@ -254,17 +255,20 @@ class MetingPlugin(Star):
             yield event.plain_result("搜索失败，请稍后重试")
 
     @filter.regex(r"^点歌(\d+)$")
-    async def play_song_by_number(self, event: AstrMessageEvent):
+    async def play_song_by_number(self, event: AstrMessageEvent, number: str = ""):
         """播放指定序号的歌曲，以语音形式发送
 
         Args:
             event: 消息事件
+            number: 歌曲序号
         """
-        match = event.get_message_str().strip()
-        if not match:
+        if not number:
             return
 
-        index = int(match[2:])
+        try:
+            index = int(number)
+        except ValueError:
+            return
         session_id = event.unified_msg_origin
 
         if (
