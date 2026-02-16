@@ -1,6 +1,6 @@
 name: astrbot_plugin_meting
 display_name: 初叶🍂MetingAPI 点歌
 desc: 基于 MetingAPI 的点歌插件，自定义API地址，支持QQ音乐、网易云、酷狗、酷我音源
-version: v1.0.9
+version: v1.0.10
 author: 初叶🍂竹叶-Furry控
 repo: https://github.com/chuyegzs/astrbot_plugin_meting

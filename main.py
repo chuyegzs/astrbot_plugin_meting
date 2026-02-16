@@ -73,7 +73,7 @@ class AudioFormatError(MetingPluginError):
     pass
 
 
-@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.0.9")
+@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.0.10")
 class MetingPlugin(Star):
     """MetingAPI 点歌插件
 
@@ -425,15 +425,21 @@ class MetingPlugin(Star):
         """
         await self._ensure_initialized()
 
+        # 获取消息内容，AstrBot会自动去掉命令前缀
         message_str = event.get_message_str().strip()
+        logger.debug(f"收到点歌命令，消息内容: {message_str!r}")
 
-        if re.match(r"^点歌\d+$", message_str):
+        # 检查是否是"点歌数字"格式（播放指定序号）
+        if re.match(r"^点歌\s*\d+$", message_str):
+            logger.debug("匹配到点歌数字格式，跳过搜索")
             return
 
+        # 提取关键词（去掉"点歌"前缀）
         if message_str.startswith("点歌"):
             keyword = message_str[2:].strip()
         else:
             keyword = message_str
+
         if not keyword:
             yield event.plain_result("请输入要搜索的歌曲名称，例如：点歌一期一会")
             return
@@ -492,7 +498,7 @@ class MetingPlugin(Star):
             logger.error(f"搜索歌曲时发生错误: {e}")
             yield event.plain_result("搜索失败，请稍后重试")
 
-    @filter.regex(r"^点歌(\d+)$")
+    @filter.regex(r"^点歌\s*(\d+)$")
     async def play_song_by_number(self, event: AstrMessageEvent):
         """播放指定序号的歌曲，以语音形式发送
 
@@ -501,10 +507,17 @@ class MetingPlugin(Star):
         """
         await self._ensure_initialized()
 
+        # 获取完整消息内容
         message_str = event.get_message_str().strip()
+        logger.debug(f"收到点歌序号命令，消息内容: {message_str!r}")
+
         try:
-            index = int(message_str[2:])
-        except (ValueError, IndexError):
+            # 去掉"点歌"前缀，提取数字
+            number_part = message_str[2:].strip()
+            index = int(number_part)
+            logger.debug(f"提取到序号: {index}")
+        except (ValueError, IndexError) as e:
+            logger.debug(f"提取序号失败: {e}")
             return
         session_id = event.unified_msg_origin
         session = await self._get_session(session_id)
