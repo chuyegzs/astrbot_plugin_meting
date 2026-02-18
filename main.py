@@ -117,7 +117,7 @@ def _get_extension_from_format(audio_format: str) -> str:
     return mapping.get(audio_format, ".mp3")
 
 
-@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.2.2")
+@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.0.2")
 class MetingPlugin(Star):
     def __init__(self, context: Context, config=None):
         super().__init__(context)
@@ -210,7 +210,7 @@ class MetingPlugin(Star):
                 return False, "无法解析主机名"
 
             # 阻止 localhost
-            if hostname.lower() in ("localhost", "127.0.0.1", "::1"):
+            if hostname.lower() in ("localhost", "127.0.0.1", "0.0.0.0", "::1"):
                 return False, "禁止访问本地地址"
 
             # 判断是否为 IP 地址
