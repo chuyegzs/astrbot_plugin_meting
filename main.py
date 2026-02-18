@@ -31,6 +31,7 @@ AUDIO_CONTENT_TYPES = {
     "audio/ogg",
     "audio/x-m4a",
     "audio/mp4",
+    "audio/x-matroska",
     "application/octet-stream",
 }
 TEMP_FILE_PREFIX = "astrbot_meting_plugin_"
