@@ -223,7 +223,6 @@ class MetingPlugin(Star):
                 if self._is_private_ip(hostname):
                     return False, "禁止访问私网 IP"
             else:
-                # 解析域名检查 IP
                 ips = await self._resolve_hostname_async(hostname)
                 if not ips:
                     return False, "域名解析失败"
@@ -240,7 +239,6 @@ class MetingPlugin(Star):
         is_valid, reason = await self._validate_url(url)
         if not is_valid:
             if "私网 IP" in reason or "本地地址" in reason:
-                # 允许用户明确配置私网 API，但给予警告
                 logger.warning(
                     f"Meting API 地址解析为私网地址 ({url})，这可能存在 SSRF 风险，请确保配置安全。"
                 )
@@ -267,14 +265,12 @@ class MetingPlugin(Star):
 
     def get_data_dir(self) -> Path:
         """Get plugin data directory"""
-        # Fallback to a standard location if context lookup fails
         return Path("data/plugins/astrbot_plugin_meting")
 
     async def _cleanup_temp_files(self):
         """清理临时目录下的过期文件"""
         try:
             now = time.time()
-            # 获取临时目录路径
             temp_dir = Path(get_astrbot_temp_path())
 
             if not temp_dir.exists():
@@ -284,7 +280,6 @@ class MetingPlugin(Star):
                 if not file_path.is_file():
                     continue
 
-                # 仅处理本插件生成的文件 (以 meting_ 开头)
                 if not file_path.name.startswith("meting_"):
                     continue
 
@@ -384,12 +379,6 @@ class MetingPlugin(Star):
                             continue
 
                         try:
-                            # 转换为 Voice 组件? Or Record?
-                            # AstrBot explicitly uses Record for file-based voice?
-                            # Let's assume Record is fine as it's imported.
-                            # But better to check what voice_result does.
-                            # event.voice_result creates Chain([Record(...)]) usually.
-
                             record = Record.fromFileSystem(str(segment_file))
                             yield event.chain_result([record])
                             await asyncio.sleep(send_interval)
@@ -401,12 +390,11 @@ class MetingPlugin(Star):
                         try:
                             if segment_file.exists():
                                 segment_file.unlink()
-                            # It's better not to remove from list during iteration, just ignore cleanup later if gone
                         except Exception:
                             pass
 
                     if success_count > 0:
-                        # yield event.plain_result("歌曲播放完成")
+                        yield event.plain_result("歌曲播放完成")
                         pass
 
                 except asyncio.CancelledError:
@@ -433,7 +421,6 @@ class MetingPlugin(Star):
         temp_dir = Path(get_astrbot_temp_path())
         temp_dir.mkdir(parents=True, exist_ok=True)
 
-        # Safe sender id is not available here, use random uuid
         safe_sender_id = uuid.uuid4().hex[:8]
 
         download_success = False
@@ -444,7 +431,6 @@ class MetingPlugin(Star):
 
         while retry_count < max_retries:
             try:
-                # Need semaphore for concurrency limit
                 async with self._download_semaphore:
                     logger.debug(
                         f"开始下载歌曲 (尝试 {retry_count + 1}/{max_retries}): {url}"
@@ -455,7 +441,6 @@ class MetingPlugin(Star):
                     max_redirects = 5
 
                     while redirect_count < max_redirects:
-                        # Validate URL safety
                         is_valid, reason = await self._validate_url(current_url)
                         if not is_valid:
                             raise UnsafeURLError(f"URL 验证失败: {reason}")
@@ -490,7 +475,6 @@ class MetingPlugin(Star):
 
                                     content_type = resp.headers.get("Content-Type", "")
                                     if not self._is_audio_content(content_type):
-                                        # Strict content type checking disabled for resilience
                                         pass
 
                                     max_file_size = 100 * 1024 * 1024
@@ -544,7 +528,6 @@ class MetingPlugin(Star):
                                     return temp_file
 
                             else:
-                                # Safe guard if _http_session became None (e.g. plugin shutdown)
                                 return None
 
                         except Exception:
@@ -621,7 +604,6 @@ class MetingPlugin(Star):
                 default_source = str(self._get_config("default_source", "netease"))
                 self._sessions[session_id] = SessionData(default_source)
 
-            # Update timestamp and cleanup
             if session_id in self._sessions:
                 self._sessions[session_id].update_timestamp()
             await self._cleanup_old_sessions_locked()
@@ -651,13 +633,52 @@ class MetingPlugin(Star):
         (await self._get_session(event.unified_msg_origin)).source = "netease"
         yield event.plain_result("已切换音源为网易云音乐")
 
-    @filter.regex(r"^点歌(\d+)$")
+    async def _perform_search(
+        self, event: AstrMessageEvent, kw: str, source: str
+    ) -> list | None:
+        await self._ensure_initialized()
+        api_url = self.get_api_url()
+        api_type = self.get_api_type()
+        session = await self._get_session(event.unified_msg_origin)
+
+        try:
+            params = (
+                {
+                    "server": source,
+                    "type": "search",
+                    "id": "0",
+                    "dwrc": "false",
+                    "keyword": kw,
+                }
+                if api_type == 2
+                else {"server": source, "type": "search", "id": kw}
+            )
+            api_endpoint = api_url if api_type == 2 else f"{api_url}/api"
+
+            if not self._http_session:
+                return None
+
+            async with self._http_session.get(api_endpoint, params=params) as resp:
+                data = await resp.json()
+
+            if not isinstance(data, list) or not data:
+                return []
+
+            result_count = self._get_config("search_result_count", 10) or 10
+            session.results = data[: int(result_count)]
+            return session.results
+        except Exception as e:
+            logger.error(f"Search failed: {e}")
+            return None
+
+    @filter.regex(r"^播歌(\d+)$")
     async def play_song_by_index(self, event: AstrMessageEvent):
         await self._ensure_initialized()
         session_id = event.unified_msg_origin
-        match = re.match(r"^点歌(\d+)$", event.get_message_str().strip())
+        match = re.match(r"^播歌(\d+)$", event.get_message_str().strip())
         if not match:
             return
+
         index = int(match.group(1))
         session = await self._get_session(session_id)
         if not session.results:
@@ -666,16 +687,27 @@ class MetingPlugin(Star):
         if index < 1 or index > len(session.results):
             yield event.plain_result("序号超出范围")
             return
-        song = session.results[index - 1]
+
+        async for result in self._play_song_logic(
+            event, session.results[index - 1], session_id
+        ):
+            yield result
+
+    async def _play_song_logic(
+        self, event: AstrMessageEvent, song: dict, session_id: str
+    ):
+        """Common logic to play a song object"""
         song_url = song.get("url", "")
         if not song_url:
             yield event.plain_result("获取歌曲地址失败")
             return
 
+        session = await self._get_session(session_id)
+        source = song.get("source") or session.source
+
         if self.use_music_card():
             title = song.get("name") or song.get("title", "未知")
             artist = song.get("artist") or song.get("author", "未知歌手")
-            source = song.get("source") or session.source
             cover = song.get("pic", "")
             if cover:
                 if source == "netease":
@@ -741,6 +773,7 @@ class MetingPlugin(Star):
                 logger.error(f"音乐卡片请求异常: {e}")
                 yield event.plain_result("制作卡片时出错")
             return
+
         try:
             temp_file = await self._download_song(song_url)
             if temp_file:
@@ -753,71 +786,96 @@ class MetingPlugin(Star):
             yield event.plain_result(f"播放失败: {e}")
 
     @filter.command("点歌")
-    async def search_song(self, event: AstrMessageEvent):
+    async def play_first_song(self, event: AstrMessageEvent):
         msg = event.get_message_str().strip()
         kw = msg[2:].strip() if msg.startswith("点歌") else msg
         if not kw:
             return
 
         session = await self._get_session(event.unified_msg_origin)
-        async for result in self._search_song_with_source(event, kw, session.source):
+        source = session.source
+
+        results = await self._perform_search(event, kw, source)
+        if not results:
+            yield event.plain_result(f"未找到歌曲: {kw}")
+            return
+
+        async for result in self._play_song_logic(
+            event, results[0], event.unified_msg_origin
+        ):
             yield result
 
     @filter.command("腾讯点歌", alias={"QQ点歌", "QQ音乐点歌", "腾讯音乐点歌"})
-    async def search_tencent_song(self, event: AstrMessageEvent):
+    async def play_tencent_first_song(self, event: AstrMessageEvent):
         msg = event.get_message_str().strip()
         kw = msg[4:].strip() if msg.startswith("腾讯点歌") else msg
         if not kw:
             return
-        async for result in self._search_song_with_source(event, kw, "tencent"):
+
+        results = await self._perform_search(event, kw, "tencent")
+        if not results:
+            yield event.plain_result(f"未找到歌曲: {kw}")
+            return
+
+        async for result in self._play_song_logic(
+            event, results[0], event.unified_msg_origin
+        ):
             yield result
 
     @filter.command("网易点歌", alias={"网易云点歌", "网抑云点歌", "网易云音乐点歌"})
-    async def search_netease_song(self, event: AstrMessageEvent):
+    async def play_netease_first_song(self, event: AstrMessageEvent):
         msg = event.get_message_str().strip()
         kw = msg[4:].strip() if msg.startswith("网易点歌") else msg
         if not kw:
             return
-        async for result in self._search_song_with_source(event, kw, "netease"):
+
+        results = await self._perform_search(event, kw, "netease")
+        if not results:
+            yield event.plain_result(f"未找到歌曲: {kw}")
+            return
+
+        async for result in self._play_song_logic(
+            event, results[0], event.unified_msg_origin
+        ):
             yield result
 
-    async def _search_song_with_source(
-        self, event: AstrMessageEvent, kw: str, source: str
-    ):
-        await self._ensure_initialized()
-        api_url = self.get_api_url()
-        api_type = self.get_api_type()
+    @filter.command("搜歌")
+    async def search_song_cmd(self, event: AstrMessageEvent):
+        msg = event.get_message_str().strip()
+        kw = msg[2:].strip() if msg.startswith("搜歌") else msg
+        if not kw:
+            return
+
         session = await self._get_session(event.unified_msg_origin)
+        async for result in self._search_and_list(event, kw, session.source):
+            yield result
 
-        try:
-            params = (
-                {
-                    "server": source,
-                    "type": "search",
-                    "id": "0",
-                    "dwrc": "false",
-                    "keyword": kw,
-                }
-                if api_type == 2
-                else {"server": source, "type": "search", "id": kw}
-            )
-            api_endpoint = api_url if api_type == 2 else f"{api_url}/api"
+    @filter.command("腾讯搜歌", alias={"QQ搜歌"})
+    async def search_tencent_cmd(self, event: AstrMessageEvent):
+        msg = event.get_message_str().strip()
+        kw = msg[4:].strip() if msg.startswith("腾讯搜歌") else msg
+        if not kw:
+            return
+        async for result in self._search_and_list(event, kw, "tencent"):
+            yield result
 
-            if not self._http_session:
-                yield event.plain_result("HTTP Session 未初始化")
-                return
+    @filter.command("网易搜歌", alias={"网易云搜歌"})
+    async def search_netease_cmd(self, event: AstrMessageEvent):
+        msg = event.get_message_str().strip()
+        kw = msg[4:].strip() if msg.startswith("网易搜歌") else msg
+        if not kw:
+            return
+        async for result in self._search_and_list(event, kw, "netease"):
+            yield result
 
-            async with self._http_session.get(api_endpoint, params=params) as resp:
-                data = await resp.json()
-            if not isinstance(data, list) or not data:
-                yield event.plain_result(f"未找到歌曲: {kw}")
-                return
-            result_count = self._get_config("search_result_count", 10) or 10
-            session.results = data[: int(result_count)]
-            res_msg = f"搜索结果 ({SOURCE_DISPLAY.get(source, source)}):\n"
-            for i, s in enumerate(session.results, 1):
-                res_msg += f"{i}. {s.get('name') or s.get('title')} - {s.get('artist') or s.get('author')}\n"
-            res_msg += "\n输入 '点歌序号' 播放"
-            yield event.plain_result(res_msg)
-        except Exception as e:
-            yield event.plain_result(f"搜索失败: {e}")
+    async def _search_and_list(self, event: AstrMessageEvent, kw: str, source: str):
+        results = await self._perform_search(event, kw, source)
+        if not results:
+            yield event.plain_result(f"未找到歌曲: {kw}")
+            return
+
+        res_msg = f"搜索结果 ({SOURCE_DISPLAY.get(source, source)}):\n"
+        for i, s in enumerate(results, 1):
+            res_msg += f"{i}. {s.get('name') or s.get('title')} - {s.get('artist') or s.get('author')}\n"
+        res_msg += "\n输入 '播歌+序号' 播放"
+        yield event.plain_result(res_msg)
