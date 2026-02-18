@@ -475,7 +475,12 @@ class MetingPlugin(Star):
 
                                     content_type = resp.headers.get("Content-Type", "")
                                     if not self._is_audio_content(content_type):
-                                        pass
+                                        logger.warning(
+                                            f"下载失败，非音频内容类型: {content_type}"
+                                        )
+                                        raise DownloadError(
+                                            f"下载失败，非音频内容类型: {content_type}"
+                                        )
 
                                     max_file_size = 100 * 1024 * 1024
                                     total_size = 0
