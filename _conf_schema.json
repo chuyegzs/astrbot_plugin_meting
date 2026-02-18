@@ -2,13 +2,30 @@
   "api_url": {
     "description": "MetingAPI 地址",
     "type": "string",
-    "hint": "不带 api? 及后面的后缀，例如：https://api.example.com/meting"
+    "hint": "不带后面的后缀，例如：https://api.example.com/meting"
   },
   "default_source": {
     "description": "默认音源",
     "type": "string",
-    "hint": "可选：tencent（QQ音乐）、netease（网易云）、kugou（酷狗）、kuwo（酷我）",
+    "hint": "可选：tencent（QQ音乐）、netease（网易云）",
     "default": "netease"
+  },
+  "api_type": {
+    "description": "API 类型",
+    "type": "int",
+    "hint": "1: Node API , 2: PHP API",
+    "default": 1
+  },
+  "use_music_card": {
+    "description": "使用音乐卡片",
+    "type": "bool",
+    "hint": "是否使用音乐卡片显示搜索结果，默认为 true",
+    "default": true
+  },
+  "api_sign_url": {
+    "description": "音乐卡片签名地址",
+    "type": "string",
+    "hint": "用于获取 API 请求签名的地址"
   },
   "search_result_count": {
     "description": "搜索结果显示数量",
