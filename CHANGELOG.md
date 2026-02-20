@@ -10,7 +10,7 @@
 - 配置项名称改回 `api_url`，更简洁直观
 - 新增 `api_type` 配置项用于选择 API 类型
 
-###更新鸣谢
+### 更新鸣谢
 
 - 在此非常感谢[NanoRocky](https://github.com/NanoRocky)提供的功能添加与Bug修复代码
 
