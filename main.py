@@ -6,6 +6,7 @@ import shutil
 import tempfile
 import time
 import uuid
+from typing import Any, Callable, Optional, TypeVar
 from urllib.parse import urljoin, urlparse
 
 import aiohttp
@@ -140,7 +141,7 @@ def _check_audio_magic(data: bytes) -> bool:
     return _detect_audio_format(data) is not None
 
 
-def _get_extension_from_format(audio_format: str) -> str:
+def _get_extension_from_format(audio_format: str | None) -> str:
     """根据音频格式获取文件扩展名
 
     Args:
@@ -156,7 +157,12 @@ def _get_extension_from_format(audio_format: str) -> str:
         "flac": ".flac",
         "mp4": ".m4a",
     }
+    if audio_format is None:
+        return ".mp3"
     return mapping.get(audio_format, ".mp3")
+
+
+T = TypeVar("T")
 
 
 @register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.0.0")
@@ -170,15 +176,15 @@ class MetingPlugin(Star):
         super().__init__(context)
         self.config = config
         self._sessions: dict[str, SessionData] = {}
-        self._sessions_lock = None
-        self._http_session = None
+        self._sessions_lock: Optional[asyncio.Lock] = None
+        self._http_session: Optional[aiohttp.ClientSession] = None
         self._ffmpeg_path = self._find_ffmpeg()
         self._cleanup_task = None
-        self._download_semaphore = None
+        self._download_semaphore: Optional[asyncio.Semaphore] = None
         self._initialized = False
-        self._init_lock = None
+        self._init_lock: Optional[asyncio.Lock] = None
         self._session_audio_locks = {}
-        self._audio_locks_lock = None
+        self._audio_locks_lock: Optional[asyncio.Lock] = None
 
     async def _ensure_initialized(self):
         """确保插件已初始化（惰性初始化）"""
@@ -207,7 +213,9 @@ class MetingPlugin(Star):
         """插件初始化（框架调用）"""
         await self._ensure_initialized()
 
-    def _get_config(self, key: str, default=None, validator=None):
+    def _get_config(
+        self, key: str, default: T, validator: Optional[Callable[[Any], Any]] = None
+    ) -> T:
         """获取配置值，支持类型和范围校验
 
         Args:
@@ -325,6 +333,8 @@ class MetingPlugin(Star):
         Returns:
             SessionData: 会话状态对象
         """
+        if self._sessions_lock is None:
+            raise MetingPluginError("插件未正确初始化：_sessions_lock 为空")
         async with self._sessions_lock:
             if session_id not in self._sessions:
                 self._sessions[session_id] = SessionData(self.get_default_source())
@@ -336,6 +346,8 @@ class MetingPlugin(Star):
         Args:
             session_id: 会话 ID
         """
+        if self._sessions_lock is None:
+            raise MetingPluginError("插件未正确初始化：_sessions_lock 为空")
         async with self._sessions_lock:
             if session_id in self._sessions:
                 self._sessions[session_id].update_timestamp()
@@ -350,6 +362,8 @@ class MetingPlugin(Star):
         Returns:
             asyncio.Lock: 音频处理锁
         """
+        if self._audio_locks_lock is None:
+            raise MetingPluginError("插件未正确初始化：_audio_locks_lock 为空")
         async with self._audio_locks_lock:
             if session_id not in self._session_audio_locks:
                 self._session_audio_locks[session_id] = asyncio.Lock()
@@ -457,7 +471,11 @@ class MetingPlugin(Star):
         while True:
             try:
                 await asyncio.sleep(3600)
-                async with self._sessions_lock:
+                lock = self._sessions_lock
+                if lock is None:
+                    logger.error("定期清理任务检测到 _sessions_lock 为 None，停止清理循环")
+                    break
+                async with lock:
                     await self._cleanup_old_sessions_locked()
                 self._cleanup_temp_files()
                 logger.debug("定期清理完成")
@@ -675,6 +693,9 @@ class MetingPlugin(Star):
                     api_url, source, "search", keyword
                 )
                 logger.info(f"[搜歌] 自定义API URL: {api_endpoint}")
+                if self._http_session is None:
+                    yield event.plain_result("插件未正确初始化：HTTP Session 为空")
+                    return
                 async with self._http_session.get(api_endpoint) as resp:
                     if resp.status != 200:
                         response_text = await resp.text()
@@ -695,6 +716,9 @@ class MetingPlugin(Star):
                     "keyword": keyword,
                 }
                 logger.info(f"[搜歌] PHP API URL: {api_url}, 参数: {params}")
+                if self._http_session is None:
+                    yield event.plain_result("插件未正确初始化：HTTP Session 为空")
+                    return
                 async with self._http_session.get(api_url, params=params) as resp:
                     if resp.status != 200:
                         response_text = await resp.text()
@@ -710,6 +734,9 @@ class MetingPlugin(Star):
                 params = {"server": source, "type": "search", "id": keyword}
                 api_endpoint = f"{api_url}/api"
                 logger.info(f"[搜歌] Node API URL: {api_endpoint}, 参数: {params}")
+                if self._http_session is None:
+                    yield event.plain_result("插件未正确初始化：HTTP Session 为空")
+                    return
                 async with self._http_session.get(api_endpoint, params=params) as resp:
                     if resp.status != 200:
                         response_text = await resp.text()
@@ -765,7 +792,8 @@ class MetingPlugin(Star):
         Returns:
             str | None: 临时文件路径，失败返回 None
         """
-        if not self._http_session:
+        http_session = self._http_session
+        if not http_session:
             raise DownloadError("HTTP session 未初始化")
 
         temp_dir = tempfile.gettempdir()
@@ -779,7 +807,10 @@ class MetingPlugin(Star):
 
         while retry_count < max_retries:
             try:
-                async with self._download_semaphore:
+                if self._download_semaphore is None:
+                    raise DownloadError("下载限流器未初始化")
+                semaphore = self._download_semaphore
+                async with semaphore:
                     logger.debug(
                         f"开始下载歌曲 (尝试 {retry_count + 1}/{max_retries}): {url}"
                     )
@@ -793,7 +824,7 @@ class MetingPlugin(Star):
                         if not is_valid:
                             raise UnsafeURLError(f"URL 验证失败: {reason}")
 
-                        async with self._http_session.get(
+                        async with http_session.get(
                             current_url, allow_redirects=False
                         ) as resp:
                             if resp.status in (301, 302, 307, 308):
@@ -873,6 +904,8 @@ class MetingPlugin(Star):
                     raise DownloadError(f"网络错误: {e}") from e
                 await asyncio.sleep(1)
             except (DownloadError, UnsafeURLError, AudioFormatError):
+                raise
+            except asyncio.CancelledError:
                 raise
             except Exception as e:
                 logger.error(f"下载歌曲时发生错误: {e}", exc_info=True)
