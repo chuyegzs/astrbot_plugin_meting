@@ -168,7 +168,7 @@ def _get_extension_from_format(audio_format: str | None) -> str:
 T = TypeVar("T")
 
 
-@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.0.6")
+@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.0.7")
 class MetingPlugin(Star):
     """MetingAPI 点歌插件
 
