@@ -169,7 +169,7 @@ def _get_extension_from_format(audio_format: str | None) -> str:
 T = TypeVar("T")
 
 
-@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.0.4")
+@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.0.6")
 class MetingPlugin(Star):
     """MetingAPI 点歌插件
 
@@ -437,12 +437,22 @@ class MetingPlugin(Star):
         """获取最大文件大小
 
         Returns:
-            int: 最大文件大小（字节），默认 50MB
+            int: 最大文件大小（字节），默认 50MB = 52428800 字节
         """
-        mb = self._get_config(
-            "max_file_size", 50, lambda x: isinstance(x, int) and 10 <= x <= 200
-        )
-        return mb * 1024 * 1024
+        try:
+            mb = self._get_config(
+                "max_file_size",
+                50,
+                lambda x: isinstance(x, (int, float)) and 10 <= x <= 200,
+            )
+            # 确保 mb 是数值类型
+            if not isinstance(mb, (int, float)):
+                logger.warning(f"max_file_size 配置无效: {mb}，使用默认值 50")
+                mb = 50
+            return int(mb) * 1024 * 1024
+        except Exception as e:
+            logger.error(f"获取 max_file_size 配置时出错: {e}，使用默认值 50MB")
+            return 50 * 1024 * 1024
 
     async def _get_session(self, session_id: str) -> SessionData:
         """获取会话状态（线程安全）
@@ -502,6 +512,21 @@ class MetingPlugin(Star):
         logger.warning("未找到 FFmpeg，请确保已安装 FFmpeg")
         return ""
 
+    # 本地主机名黑名单（包括各种变体）
+    _LOCAL_HOSTNAMES = frozenset(
+        {
+            "localhost",
+            "127.0.0.1",
+            "0.0.0.0",
+            "::1",
+            "[::1]",
+            "0000:0000:0000:0000:0000:0000:0000:0001",
+            "0:0:0:0:0:0:0:1",
+            "0177.0.0.1",  # 八进制形式的 127.0.0.1
+            "0x7f.0.0.1",  # 十六进制形式的 127.0.0.1
+        }
+    )
+
     def _is_private_ip(self, ip_str: str) -> bool:
         """判断 IP 是否为私网地址
 
@@ -513,9 +538,32 @@ class MetingPlugin(Star):
         """
         try:
             ip = ipaddress.ip_address(ip_str)
-            return ip.is_private or ip.is_loopback or ip.is_link_local
+            return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
         except ValueError:
             return False
+
+    def _is_local_hostname(self, hostname: str) -> bool:
+        """检查主机名是否为本地地址
+
+        Args:
+            hostname: 主机名
+
+        Returns:
+            bool: 是否为本地地址
+        """
+        hostname_lower = hostname.lower().strip("[]")  # 移除 IPv6 的方括号
+        if hostname_lower in self._LOCAL_HOSTNAMES:
+            return True
+
+        # 检查是否是 127.0.0.0/8 网段的其他地址（如 127.0.0.2, 127.1.2.3 等）
+        try:
+            ip = ipaddress.ip_address(hostname_lower)
+            if ip.is_loopback:
+                return True
+        except ValueError:
+            pass
+
+        return False
 
     async def _resolve_hostname_async(self, hostname: str) -> list:
         """异步解析主机名为 IP 地址列表
@@ -533,11 +581,15 @@ class MetingPlugin(Star):
         except Exception:
             return []
 
-    async def _validate_url(self, url: str) -> tuple[bool, str]:
+    async def _validate_url(
+        self, url: str, strict_dns: bool = True
+    ) -> tuple[bool, str]:
         """验证 URL 是否安全，防止 SSRF 攻击
 
         Args:
             url: 要验证的 URL
+            strict_dns: 是否严格检查 DNS 解析，默认为 True。
+                       对于歌曲下载 URL 可设为 False，允许 DNS 解析失败
 
         Returns:
             tuple[bool, str]: (是否安全, 失败原因)
@@ -551,9 +603,11 @@ class MetingPlugin(Star):
             if not hostname:
                 return False, "URL 缺少主机名"
 
-            if hostname in ("localhost", "0.0.0.0"):
+            # 使用新的本地主机名检查方法
+            if self._is_local_hostname(hostname):
                 return False, f"禁止访问本地地址: {hostname}"
 
+            # 检查是否是 IP 地址
             ip_match = re.match(r"^(\d+\.){3}\d+$", hostname)
             if ip_match:
                 if self._is_private_ip(hostname):
@@ -561,8 +615,15 @@ class MetingPlugin(Star):
             else:
                 ips = await self._resolve_hostname_async(hostname)
                 if not ips:
-                    logger.warning(f"[URL 验证] 无法解析主机名: {hostname}")
-                    return False, f"无法解析主机名: {hostname}"
+                    if strict_dns:
+                        logger.warning(f"[URL 验证] 无法解析主机名: {hostname}")
+                        return False, f"无法解析主机名: {hostname}"
+                    else:
+                        # 非严格模式下，记录警告但允许通过
+                        logger.warning(
+                            f"[URL 验证] 无法解析主机名: {hostname}，但允许继续"
+                        )
+                        return True, ""
                 for ip in ips:
                     if self._is_private_ip(ip):
                         return False, f"主机名解析到私网地址: {hostname} -> {ip}"
@@ -737,7 +798,9 @@ class MetingPlugin(Star):
             yield event.plain_result("获取歌曲播放地址失败")
             return
 
-        is_valid, reason = await self._validate_url(song_url)
+        # 歌曲 URL 使用非严格模式验证，允许 DNS 解析失败
+        # 因为歌曲 URL 来自可信的 MetingAPI，且可能是临时 CDN 地址
+        is_valid, reason = await self._validate_url(song_url, strict_dns=False)
         if not is_valid:
             logger.error(f"检测到不安全的 URL: {song_url}, 原因: {reason}")
             yield event.plain_result(f"歌曲地址无效: {reason}")
@@ -1176,7 +1239,10 @@ class MetingPlugin(Star):
                     max_redirects = 5
 
                     while redirect_count < max_redirects:
-                        is_valid, reason = await self._validate_url(current_url)
+                        # 下载时使用非严格模式，允许 DNS 解析失败
+                        is_valid, reason = await self._validate_url(
+                            current_url, strict_dns=False
+                        )
                         if not is_valid:
                             raise UnsafeURLError(f"URL 验证失败: {reason}")
 
@@ -1202,7 +1268,8 @@ class MetingPlugin(Star):
                                     f"不支持的 Content-Type: {content_type}"
                                 )
 
-                            max_file_size = self.get_max_file_size()
+                            max_file_size_bytes = self.get_max_file_size()
+                            max_file_size_mb = max_file_size_bytes // (1024 * 1024)
                             total_size = 0
                             first_chunk = None
                             temp_file = os.path.join(
@@ -1227,15 +1294,15 @@ class MetingPlugin(Star):
 
                                         f.write(chunk)
                                         total_size += len(chunk)
-                                        if total_size > max_file_size:
+                                        if total_size > max_file_size_bytes:
                                             raise DownloadError(
-                                                f"文件过大，已超过 {max_file_size} 字节"
+                                                f"文件过大，已超过 {max_file_size_mb} MB"
                                             )
                                 except aiohttp.ClientPayloadError as e:
                                     raise DownloadError(f"连接中断: {e}") from e
 
-                            file_size = os.path.getsize(temp_file)
-                            if file_size == 0:
+                            file_size_bytes = os.path.getsize(temp_file)
+                            if file_size_bytes == 0:
                                 raise DownloadError("下载的文件为空")
 
                             file_ext = _get_extension_from_format(detected_format)
@@ -1243,8 +1310,9 @@ class MetingPlugin(Star):
                             os.rename(temp_file, final_file)
                             temp_file = final_file
 
+                            file_size_mb = file_size_bytes / (1024 * 1024)
                             logger.info(
-                                f"歌曲下载成功，文件大小: {file_size} 字节，格式: {detected_format}"
+                                f"歌曲下载成功，文件大小: {file_size_mb:.2f} MB，格式: {detected_format}"
                             )
                             download_success = True
                             return temp_file
