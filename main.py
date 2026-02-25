@@ -239,8 +239,10 @@ class MetingPlugin(Star):
                         logger.warning(
                             "检测到当前 AstrBot 版本可能不支持 JSON 消息组件。请更新 AstrBot 版本，否则音乐卡片可能无法发送。"
                         )
+                    else:
+                        logger.debug("AstrBot 兼容性检查通过。")
                 except Exception as e:
-                    logger.debug(f"检查 AstrBot兼容性失败: {e}")
+                    logger.debug(f"AstrBot 兼容性检查失败: {e}。")
 
     async def initialize(self):
         """插件初始化（框架调用）"""
