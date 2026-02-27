@@ -774,6 +774,7 @@ class MetingPlugin(Star):
                     "timestamp": time.time(),
                     "msg_id": msg_id,
                 }
+                session.update_timestamp()
             else:
                 session.results = results
                 session.update_timestamp()
