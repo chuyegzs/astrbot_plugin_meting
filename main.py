@@ -74,6 +74,8 @@ class SessionData:
         self._source = default_source
         self._results = []
         self._timestamp = time.time()
+        self._user_results = {}  # {user_id: {"results": [...], "timestamp": float, "msg_id": str|int}}
+        self._shared_msg_id = None  # For non-restricted mode
 
     @property
     def source(self) -> str:
@@ -168,7 +170,7 @@ def _get_extension_from_format(audio_format: str | None) -> str:
 T = TypeVar("T")
 
 
-@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.0.7")
+@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.0.8")
 class MetingPlugin(Star):
     """MetingAPI 点歌插件
 
@@ -242,7 +244,7 @@ class MetingPlugin(Star):
                     else:
                         logger.debug("AstrBot 兼容性检查通过。")
                 except Exception as e:
-                    logger.debug(f"AstrBot 兼容性检查失败: {e}。")
+                    logger.debug(f"AstrBot 兼容性检查失败: {e}")
 
     async def initialize(self):
         """插件初始化（框架调用）"""
@@ -368,7 +370,7 @@ class MetingPlugin(Star):
         Returns:
             bool: 是否启用音乐卡片
         """
-        return bool(self._get_config("use_music_card", False))
+        return bool(self._get_config("use_music_card", True))
 
     def _build_api_url_for_custom(
         self, api_url: str, template: str, server: str, req_type: str, id_val: str
@@ -458,6 +460,28 @@ class MetingPlugin(Star):
         except Exception as e:
             logger.error(f"获取 max_file_size 配置时出错: {e}，使用默认值 50MB")
             return 50 * 1024 * 1024
+
+    def get_search_result_expiration_time(self) -> int:
+        """获取搜索结果过期时间"""
+        return self._get_config(
+            "search_result_expiration_time",
+            120,
+            lambda x: isinstance(x, int) and 30 <= x <= 300,
+        )
+
+    def get_search_results_withdrawn_after_timeout(self) -> int:
+        """获取搜索结果超时撤回时间"""
+        return self._get_config(
+            "search_results_withdrawn_after_timeout",
+            60,
+            lambda x: isinstance(x, int) and -1 <= x <= 300,
+        )
+
+    def get_search_result_restrictions(self) -> bool:
+        """获取搜索结果限制"""
+        return self._get_config(
+            "search_result_restrictions", False, lambda x: isinstance(x, bool)
+        )
 
     async def _get_session(self, session_id: str) -> SessionData:
         """获取会话状态（线程安全）
@@ -720,28 +744,93 @@ class MetingPlugin(Star):
         session.source = source
         await self._update_session_timestamp(session_id)
 
-    async def _set_session_results(self, session_id: str, results: list):
-        """设置会话搜索结果
+    async def _set_session_results(
+        self,
+        session_id: str,
+        results: list,
+        sender_id: str | None = None,
+        msg_id: Any = None,
+    ):
+        """设置会话搜索结果（线程安全）
 
         Args:
             session_id: 会话 ID
             results: 搜索结果列表
+            sender_id: 发送者 ID
+            msg_id: 消息 ID
         """
-        session = await self._get_session(session_id)
-        session.results = results
-        await self._update_session_timestamp(session_id)
+        if self._sessions_lock is None:
+            raise MetingPluginError("插件未正确初始化：_sessions_lock 为空")
+        async with self._sessions_lock:
+            if session_id not in self._sessions:
+                self._sessions[session_id] = SessionData(self.get_default_source())
 
-    async def _get_session_results(self, session_id: str) -> list:
-        """获取会话搜索结果
+            session = self._sessions[session_id]
+            restriction = self.get_search_result_restrictions()
+
+            if restriction and sender_id:
+                session._user_results[sender_id] = {
+                    "results": results,
+                    "timestamp": time.time(),
+                    "msg_id": msg_id,
+                }
+            else:
+                session.results = results
+                session.update_timestamp()
+                session._shared_msg_id = msg_id
+
+            await self._cleanup_old_sessions_locked()
+
+    async def _get_session_results(
+        self, session_id: str, sender_id: str | None = None
+    ) -> list:
+        """获取会话搜索结果（线程安全）
 
         Args:
             session_id: 会话 ID
+            sender_id: 发送者 ID，如果启用限制则用于获取特定用户的结果
 
         Returns:
             list: 搜索结果列表
         """
-        session = await self._get_session(session_id)
-        return session.results
+        if self._sessions_lock is None:
+            raise MetingPluginError("插件未正确初始化：_sessions_lock 为空")
+
+        expiration_time = self.get_search_result_expiration_time()
+        restriction = self.get_search_result_restrictions()
+
+        async with self._sessions_lock:
+            if session_id not in self._sessions:
+                return []
+
+            session = self._sessions[session_id]
+            current_time = time.time()
+
+            # 优先检查用户专属结果
+            if restriction and sender_id and sender_id in session._user_results:
+                user_data = session._user_results[sender_id]
+                timestamp = user_data["timestamp"]
+
+                if current_time - timestamp > expiration_time:
+                    # 已过期，清除
+                    del session._user_results[sender_id]
+                    logger.debug(
+                        f"Session {session_id} User {sender_id} search results expired."
+                    )
+                    return []
+                return user_data["results"]
+
+            # 如果没有专属结果或未启用限制，检查共享结果
+            if restriction:
+                return []
+
+            # 未开启限制，使用共享结果
+            if current_time - session.timestamp > expiration_time:
+                session.results = []
+                logger.debug(f"Session {session_id} shared search results expired.")
+                return []
+
+            return session.results
 
     async def _perform_search(self, keyword: str, source: str) -> list | None:
         """执行搜索并返回结果列表"""
@@ -1079,6 +1168,7 @@ class MetingPlugin(Star):
 
         message_str = event.get_message_str().strip()
         session_id = event.unified_msg_origin
+        sender_id = event.get_sender_id()
 
         if message_str.startswith("点歌"):
             arg = message_str[2:].strip()
@@ -1095,7 +1185,7 @@ class MetingPlugin(Star):
             index = int(arg)
             logger.info(f"[点歌] 播放模式，序号: {index}")
 
-            results = await self._get_session_results(session_id)
+            results = await self._get_session_results(session_id, sender_id)
             logger.info(f"[点歌] 会话结果数量: {len(results)}")
 
             if not results:
@@ -1107,6 +1197,30 @@ class MetingPlugin(Star):
                     f"序号超出范围，请输入 1-{len(results)} 之间的序号"
                 )
                 return
+
+            # 如果 withdrawn_after_timeout 为 0，点歌成功后撤回搜索结果
+            withdrawn_timeout = self.get_search_results_withdrawn_after_timeout()
+            if withdrawn_timeout == 0:
+                # 立即清除搜索结果
+                if self._sessions_lock:
+                    msg_to_delete = None
+                    async with self._sessions_lock:
+                        if session_id in self._sessions:
+                            sess = self._sessions[session_id]
+                            if self.get_search_result_restrictions():
+                                if sender_id in sess._user_results:
+                                    msg_to_delete = sess._user_results[sender_id].get(
+                                        "msg_id"
+                                    )
+                                    del sess._user_results[sender_id]
+                            else:
+                                msg_to_delete = sess._shared_msg_id
+                                sess.results = []
+                                sess._shared_msg_id = None
+
+                    logger.debug(f"点歌成功，立即清除搜索结果 (Session: {session_id})")
+                    if msg_to_delete:
+                        await self._delete_search_msg(event, msg_to_delete)
 
             song = results[index - 1]
             async for result in self._play_song_logic(event, song, session_id):
@@ -1126,6 +1240,70 @@ class MetingPlugin(Star):
             async for result in self._play_song_logic(event, song, session_id):
                 yield result
 
+    async def _delete_search_msg(self, event: AstrMessageEvent, msg_id: Any):
+        """尝试撤回消息"""
+        if not msg_id:
+            return
+
+        try:
+            # 针对 OneBot V11 (aiocqhttp/NapCat) 的撤回逻辑
+            if event.platform_meta.name == "aiocqhttp" or hasattr(event, "bot"):
+                bot = getattr(event, "bot", None)
+                if bot and hasattr(bot, "delete_msg"):
+                    logger.info(f"尝试撤回搜索结果消息: {msg_id}")
+                    await bot.delete_msg(message_id=msg_id)
+        except Exception as e:
+            logger.warning(f"撤回消息失败: {e}")
+
+    async def _clear_search_results_delayed(
+        self,
+        session_id: str,
+        sender_id: str,
+        delay: int,
+        event: AstrMessageEvent | None = None,
+    ):
+        """延迟清除搜索结果"""
+        logger.debug(
+            f"Scheduled to clear search results for {session_id} (user {sender_id}) in {delay}s"
+        )
+        await asyncio.sleep(delay)
+
+        if self._sessions_lock is None:
+            return
+
+        async with self._sessions_lock:
+            if session_id not in self._sessions:
+                return
+            sess = self._sessions[session_id]
+            msg_to_delete = None
+
+            if self.get_search_result_restrictions():
+                if sender_id in sess._user_results:
+                    user_data = sess._user_results[sender_id]
+                    # Check if the result is still the one we scheduled for (by checking timestamp)
+                    if time.time() - user_data["timestamp"] >= delay - 0.5:
+                        msg_to_delete = user_data.get("msg_id")
+                        del sess._user_results[sender_id]
+                        logger.debug(
+                            f"Search results for user {sender_id} in {session_id} cleared due to timeout."
+                        )
+                    else:
+                        logger.debug(
+                            f"Skipping clearance for {sender_id}: results updated recently."
+                        )
+            else:
+                # Shared mode
+                if time.time() - sess.timestamp >= delay - 0.5:
+                    msg_to_delete = sess._shared_msg_id
+                    sess.results = []
+                    sess._shared_msg_id = None
+                    logger.debug(
+                        f"Shared search results in {session_id} cleared due to timeout."
+                    )
+
+        if msg_to_delete and event:
+            await self._delete_search_msg(event, msg_to_delete)
+
     @filter.command("搜歌")
     async def search_song(self, event: AstrMessageEvent):
         """搜索歌曲（搜歌 xxx格式）
@@ -1137,6 +1315,7 @@ class MetingPlugin(Star):
 
         message_str = event.get_message_str().strip()
         session_id = event.unified_msg_origin
+        sender_id = event.get_sender_id()
 
         if message_str.startswith("搜歌"):
             keyword = message_str[2:].strip()
@@ -1160,8 +1339,6 @@ class MetingPlugin(Star):
             yield event.plain_result(f"未找到歌曲: {keyword}")
             return
 
-        await self._set_session_results(session_id, results)
-
         message = f"搜索结果（音源: {SOURCE_DISPLAY.get(source, source)}）:\n"
         for idx, song in enumerate(results, 1):
             name = song.get("name") or song.get("title") or "未知"
@@ -1169,7 +1346,48 @@ class MetingPlugin(Star):
             message += f"{idx}. {name} - {artist}\n"
 
         message += '\n发送"点歌 1"播放第一首歌曲'
-        yield event.plain_result(message)
+
+        # 尝试直接发送消息以获取 Message ID (针对自动撤回功能)
+        msg_id = None
+        sent_success = False
+        withdrawn_timeout = self.get_search_results_withdrawn_after_timeout()
+
+        if withdrawn_timeout != -1:
+            try:
+                if event.platform_meta.name == "aiocqhttp" or hasattr(event, "bot"):
+                    bot = getattr(event, "bot", None)
+                    if bot:
+                        group_id = event.message_obj.group_id
+                        ret = None
+                        if group_id:
+                            ret = await bot.send_group_msg(
+                                group_id=int(group_id), message=message
+                            )
+                        else:
+                            # 私聊 注意：AiocqhttpMessageEvent 的 session_id 通常是 user_id
+                            if event.session_id and event.session_id.isdigit():
+                                ret = await bot.send_private_msg(
+                                    user_id=int(event.session_id), message=message
+                                )
+
+                        if ret and isinstance(ret, dict) and "message_id" in ret:
+                            msg_id = ret["message_id"]
+                            sent_success = True
+            except Exception as e:
+                logger.warning(f"尝试直接发送搜索结果失败，回退到默认方式: {e}")
+
+        if not sent_success:
+            yield event.plain_result(message)
+
+        await self._set_session_results(session_id, results, sender_id, msg_id)
+
+        # 处理超时自动撤回（实际上是清除缓存 + 撤回消息）
+        if withdrawn_timeout > 0:
+            asyncio.create_task(
+                self._clear_search_results_delayed(
+                    session_id, sender_id, withdrawn_timeout, event
+                )
+            )
 
     async def _download_song(self, url: str, sender_id: str) -> str | None:
         """下载歌曲文件
