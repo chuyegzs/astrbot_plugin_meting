@@ -12,23 +12,23 @@
 
 ## 音乐卡片说明（推荐使用，因为转语音音质打折扣）
 
-- 音乐卡片功能默认关闭（默认为 `false`）
+- 音乐卡片功能默认开启
 - 开启后，用户输入“搜歌 xxx（歌名）”，再次输入“点歌 x（搜索列表歌曲位置，数字排列）”，会收到包含音乐信息的卡片，点击卡片的歌曲封面上的播放按钮可以直接播放音乐
 
 ## 功能特性
 
-- 支持多音源：QQ音乐、网易云、酷狗、酷我
+- 支持多音源：QQ音乐、网易云、酷狗、酷我（具体需要 API 支持）
 - 会话级音源切换，不影响其他会话
 - 智能语音分段发送，自动处理超过2分钟的歌曲
 - 支持音乐卡片显示（可选）
 - 快捷点歌指令，直接指定音源搜索
 - 简单易用的命令交互
-- 支持三种 API 类型，最大限度兼容各种 MetingAPI
+- 支持两种 API 类型，并支持自定义调用参数，最大限度兼容各种 MetingAPI
 
 ## 安装
 
 1. （1）将插件目录 `astrbot_plugin_meting` 放入 AstrBot 的 `data/plugins` 目录
-（2）WebUI中从链接安装:https://github.com/chuyegzs/astrbot_plugin_meting
+（2）WebUI中从链接安装:https://github.com/chuyegzs/astrbot_plugin_meting/
 2. 在 AstrBot WebUI 的插件管理处启用该插件
 3. 在插件配置中设置 MetingAPI 地址和类型
 
@@ -42,7 +42,7 @@
 - **描述**：选择预设的 MetingAPI 或自定义
 - **可选值**：
   - `https://musicapi.chuyel.top/meting/` - 初叶🍂竹叶 Furry API（带QQ音乐/网易云会员）
-  - `https://metingapi.nanorocky.top/` - NanoRocky API（带网易云会员）
+  - `https://metingapi.nanorocky.top/` - 呆呆酪灰的 MetingAPI
   - `custom` - 自定义 API
 - **默认**：`https://musicapi.chuyel.top/meting/`
 
@@ -184,7 +184,6 @@ brew install ffmpeg
 | 网易云 | netease |
 | 酷狗 | kugou |
 | 酷我 | kuwo |
-| 哔哩哔哩 | bilibili |
 
 ### API 类型说明
 
