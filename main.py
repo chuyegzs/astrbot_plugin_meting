@@ -992,7 +992,7 @@ class MetingPlugin(Star):
                         yield event.chain_result([json_card])
 
                         preview = res_json.get("preview","")
-                        music_url = res_json.get("music_url","")
+                        music_url = res_json.get("musicUrl","")
 
                         try:
                             async with self._http_session.get(music_url) as resp:
