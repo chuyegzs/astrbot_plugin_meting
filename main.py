@@ -1012,9 +1012,10 @@ class MetingPlugin(Star):
                             Json.Plain(f"{title}"),
                             Json.Image.fromURL(preview),
                             Json.File(file=f"{music_url}", name=f"{title}.{file_type}"),
-                            Json.Plain(f"URL:\n{music_url}"),
-                            
+                            Json.Plain(f"URL:\n{music_url}")
                         ]
+
+                        yield event.chain_result(chain)
                     
                     else:
                         yield event.plain_result(
