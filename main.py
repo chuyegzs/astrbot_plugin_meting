@@ -19,6 +19,8 @@ from astrbot.api.star import Context, Star, register
 from astrbot.core.config.default import VERSION
 from astrbot.core.pipeline.respond import stage
 
+
+
 SOURCE_DISPLAY = {
     "tencent": "QQ音乐",
     "netease": "网易云音乐",
@@ -997,18 +999,20 @@ class MetingPlugin(Star):
                                 if resp.status != 200:
                                     yield event.plain_result(f"音樂请求失败: {resp.status}")
                                     return
-                                res_header = await resp.header
-                                logger.info(f"Head:{res_header}")
+                                res_data = await resp.data
+                                file_type = _detect_audio_format(res_data)
+                                logger.info(f"Type:{file_type}")
                                 
                         except Exception as e:
                             logger.error(f"音樂请求异常: {e}")
+                            file_type = "mp3"
                                 
           
                         chain = [
-                            Comp.Plain(f"{title}"),
-                            Comp.Image.fromURL(preview),
-                            Comp.File(file=f"{music_url}", name=f"{title}.mp3"),
-                            Comp.Plain(f"URL:\n{music_url}"),
+                            Json.Plain(f"{title}"),
+                            Json.Image.fromURL(preview),
+                            Json.File(file=f"{music_url}", name=f"{title}.{file_type}"),
+                            Json.Plain(f"URL:\n{music_url}"),
                             
                         ]
                     
