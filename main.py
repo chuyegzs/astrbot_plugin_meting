@@ -995,11 +995,11 @@ class MetingPlugin(Star):
                         music_url = res_json.get("music_url","")
 
                         try:
-                            async with self._http_session.get(sign_api, params=params) as resp:
+                            async with self._http_session.get(music_url) as resp:
                                 if resp.status != 200:
                                     yield event.plain_result(f"音樂请求失败: {resp.status}")
                                     return
-                                res_data = await resp.read()
+                                res_data = await resp.content.read(4096)  # 只讀前4KB判斷格式
                                 file_type = _detect_audio_format(res_data)
                                 logger.info(f"Type:{file_type}")
                                 
