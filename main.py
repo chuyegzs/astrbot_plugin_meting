@@ -988,6 +988,30 @@ class MetingPlugin(Star):
                         logger.info("音乐卡片签名成功，发送卡片")
                         logger.debug(f"卡片数据: {json_card}")
                         yield event.chain_result([json_card])
+
+                        preview = res_json.get("preview","")
+                        music_url = res_json.get("music_url","")
+
+                        try:
+                            async with self._http_session.get(sign_api, params=params) as resp:
+                                if resp.status != 200:
+                                    yield event.plain_result(f"音樂请求失败: {resp.status}")
+                                    return
+                                res_header = await resp.header
+                                logger.info(f"Head:{res_header}")
+                                
+                        except Exception as e:
+                            logger.error(f"音樂请求异常: {e}")
+                                
+          
+                        chain = [
+                            Comp.Plain(f"{title}"),
+                            Comp.Image.fromURL(preview),
+                            Comp.File(file=f"{"{music_url}"}, name=f"{title}.mp3"),
+                            Comp.Plain(f"URL:\n{music_url}"),
+                            
+                        ]
+                    
                     else:
                         yield event.plain_result(
                             f"签名失败: {res_json.get('message', '未知错误')}"
