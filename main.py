@@ -1175,15 +1175,9 @@ class MetingPlugin(Star):
         logger.info(f"SESID:{session_id}")
         logger.info(f"SENDID:{sender_id}")
 
-        logger.info(f"S:{self}")
-        for i in self.alias:
-            if message_str.includes(i):
-                arg = message_str[2:].strip()
-                logger.info(f"符合別名 取得：{arg} 原：{i}")
-                
-            else:
-                arg = message_str
-                logger.info(f"非符合別名 取得：{arg}")
+        
+        arg = message_str[1:]
+        logger.info(f"取得：{arg}")
 
         if not arg:
             yield event.plain_result(
