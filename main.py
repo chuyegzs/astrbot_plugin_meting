@@ -1007,7 +1007,7 @@ class MetingPlugin(Star):
                         chain = [
                             Comp.Plain(f"{title}"),
                             Comp.Image.fromURL(preview),
-                            Comp.File(file=f"{"{music_url}"}, name=f"{title}.mp3"),
+                            Comp.File(file=f"{music_url}", name=f"{title}.mp3"),
                             Comp.Plain(f"URL:\n{music_url}"),
                             
                         ]
@@ -1016,6 +1016,7 @@ class MetingPlugin(Star):
                         yield event.plain_result(
                             f"签名失败: {res_json.get('message', '未知错误')}"
                         )
+                        
             except Exception as e:
                 logger.error(f"音乐卡片请求异常: {e}")
                 yield event.plain_result("制作卡片时出错")
