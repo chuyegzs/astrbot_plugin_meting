@@ -999,7 +999,7 @@ class MetingPlugin(Star):
                                 if resp.status != 200:
                                     yield event.plain_result(f"音樂请求失败: {resp.status}")
                                     return
-                                res_data = await resp.data
+                                res_data = await resp.read()
                                 file_type = _detect_audio_format(res_data)
                                 logger.info(f"Type:{file_type}")
                                 
