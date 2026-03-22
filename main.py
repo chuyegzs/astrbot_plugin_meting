@@ -1025,7 +1025,7 @@ class MetingPlugin(Star):
             logger.error(f"播放歌曲时发生错误: {e}", exc_info=True)
             yield event.plain_result("播放失败，请稍后重试")
 
-    @filter.command("切换QQ音乐", alias={"切换腾讯音乐", "切换QQMusic"})
+    @filter.command("toqqmusic", alias={"切换腾讯音乐", "切换QQMusic"})
     async def switch_tencent(self, event: AstrMessageEvent):
         """切换当前会话的音源为QQ音乐"""
         await self._ensure_initialized()
@@ -1034,7 +1034,7 @@ class MetingPlugin(Star):
         yield event.plain_result("已切换音源为QQ音乐")
 
     @filter.command(
-        "切换网易云",
+        "to163",
         alias={
             "切换网易",
             "切换网易云音乐",
@@ -1050,7 +1050,7 @@ class MetingPlugin(Star):
         await self._set_session_source(session_id, "netease")
         yield event.plain_result("已切换音源为网易云")
 
-    @filter.command("切换酷狗", alias={"切换酷狗音乐"})
+    @filter.command("tocodog", alias={"切换酷狗音乐"})
     async def switch_kugou(self, event: AstrMessageEvent):
         """切换当前会话的音源为酷狗"""
         await self._ensure_initialized()
@@ -1058,7 +1058,7 @@ class MetingPlugin(Star):
         await self._set_session_source(session_id, "kugou")
         yield event.plain_result("已切换音源为酷狗")
 
-    @filter.command("切换酷我", alias={"切换酷我音乐"})
+    @filter.command("tocowa", alias={"切换酷我音乐"})
     async def switch_kuwo(self, event: AstrMessageEvent):
         """切换当前会话的音源为酷我"""
         await self._ensure_initialized()
@@ -1104,7 +1104,7 @@ class MetingPlugin(Star):
         ):
             yield result
 
-    @filter.command("网易点歌", alias={"网易云点歌", "网抑云点歌", "网易云音乐点歌"})
+    @filter.command("163song", alias={"网易云点歌", "网抑云点歌", "网易云音乐点歌"})
     async def play_netease_first_song(self, event: AstrMessageEvent):
         """网易云点歌"""
         async for result in self._handle_specific_source_play(
@@ -1112,7 +1112,7 @@ class MetingPlugin(Star):
         ):
             yield result
 
-    @filter.command("腾讯点歌", alias={"QQ点歌", "QQ音乐点歌", "腾讯音乐点歌"})
+    @filter.command("qqsong", alias={"QQ点歌", "QQ音乐点歌", "腾讯音乐点歌"})
     async def play_tencent_first_song(self, event: AstrMessageEvent):
         """QQ音乐点歌"""
         async for result in self._handle_specific_source_play(
@@ -1120,7 +1120,7 @@ class MetingPlugin(Star):
         ):
             yield result
 
-    @filter.command("酷狗点歌", alias={"酷狗音乐点歌"})
+    @filter.command("codogsong", alias={"酷狗音乐点歌"})
     async def play_kugou_first_song(self, event: AstrMessageEvent):
         """酷狗点歌"""
         async for result in self._handle_specific_source_play(
@@ -1128,7 +1128,7 @@ class MetingPlugin(Star):
         ):
             yield result
 
-    @filter.command("酷我点歌", alias={"酷我音乐点歌"})
+    @filter.command("cowasong", alias={"酷我音乐点歌"})
     async def play_kuwo_first_song(self, event: AstrMessageEvent):
         """酷我点歌"""
         async for result in self._handle_specific_source_play(
@@ -1136,7 +1136,7 @@ class MetingPlugin(Star):
         ):
             yield result
 
-    @filter.command("点歌指令", alias={"点歌帮助", "点歌说明", "点歌指南", "点歌菜单"})
+    @filter.command("song_help", alias={"点歌帮助", "点歌说明", "点歌指南", "点歌菜单"})
     async def show_commands(self, event: AstrMessageEvent):
         # 显示所有可用指令
         commands = [
@@ -1162,7 +1162,7 @@ class MetingPlugin(Star):
         ]
         yield event.plain_result("\n".join(commands))
 
-    @filter.command("点歌")
+    @filter.command("song_ns",alias={"点歌", "點歌"})
     async def play_song_cmd(self, event: AstrMessageEvent):
         """点歌指令，支持序号或歌名"""
         await self._ensure_initialized()
@@ -1171,10 +1171,18 @@ class MetingPlugin(Star):
         session_id = event.unified_msg_origin
         sender_id = event.get_sender_id()
 
-        if message_str.startswith("点歌"):
-            arg = message_str[2:].strip()
-        else:
-            arg = message_str
+        logger.info(f"MES:{message_str}")
+        logger.info(f"SESID:{session_id}")
+        logger.info(f"SENDID:{sender_id}")
+
+        for i in alias:
+            if message_str.includes(i):
+                arg = message_str[2:].strip()
+                logger.info(f"符合別名 取得：{arg} 原：{i}")
+                
+            else:
+                arg = message_str
+                logger.info(f"非符合別名 取得：{arg}")
 
         if not arg:
             yield event.plain_result(
