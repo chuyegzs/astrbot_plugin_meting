@@ -14,7 +14,7 @@ from urllib.parse import parse_qs, urljoin, urlparse
 from packaging.version import parse as parse_version
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
-from astrbot.api.message_components import Json, Record
+from astrbot.api.message_components import Json, Record,Plain,Image,File
 from astrbot.api.star import Context, Star, register
 from astrbot.core.config.default import VERSION
 from astrbot.core.pipeline.respond import stage
@@ -1009,10 +1009,10 @@ class MetingPlugin(Star):
                                 
           
                         chain = [
-                            Json.Plain(f"{title}"),
-                            Json.Image.fromURL(preview),
-                            Json.File(file=f"{music_url}", name=f"{title}.{file_type}"),
-                            Json.Plain(f"URL:\n{music_url}")
+                            Plain(f"{title}"),
+                            Image.fromURL(preview),
+                            File(file=f"{music_url}", name=f"{title}.{file_type}"),
+                            Plain(f"URL:\n{music_url}")
                         ]
 
                         yield event.chain_result(chain)
