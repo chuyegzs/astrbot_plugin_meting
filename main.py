@@ -1633,18 +1633,14 @@ class MetingPlugin(Star):
             bool: 是否成功
         """
         try:
+            logger.info(f"DebugFileR:{FileRes}\n{segment_file}")
             segment.export(segment_file, format="mp3",parameters=["-q:a","2"])
             
-            FileRes=File(file=segment_file,name=f"{self.title}.mp3")
-
-            logger.info(f"DebugFileR:{FileRes}\n{segment_file}\n{segment}")
             #稍微壓縮以便檔案限制問題
-            yield event.chain_result(
-                FileRes
-            )                   
+            
             yield event.plain_result(f"發送已處理的音頻 {segment} : {segment_file}")
 
-            
+
             return True
         except Exception as e:
             logger.error(f"导出音频片段失败: {e}")
@@ -1699,6 +1695,7 @@ class MetingPlugin(Star):
                     )
 
                     base_name = os.path.splitext(os.path.basename(temp_file))[0]
+
                     success_count = 0
 
                     for idx, segment in self._iterate_audio_segments(audio, segment_ms):
@@ -1708,13 +1705,14 @@ class MetingPlugin(Star):
                         )
                         temp_files_to_cleanup.append(segment_file)
 
-                        logger.info(f"ffmpeg:{idx}:{segment}")
+                        logger.info(f"ffmpeg->:{idx}:{segment}")
                         # 在线程池中执行音频导出操作
                         success = await loop.run_in_executor(
                             None, self._export_segment_sync, segment, segment_file
                         )
+
+
                         if not success:
-                            
                             continue
 
                         
@@ -1722,8 +1720,7 @@ class MetingPlugin(Star):
                     
 
                         try:
-                            record = Record.fromFileSystem(segment_file)
-
+                            record = File.fromFileSystem(segment_file)
                             yield event.chain_result([record])
                             await asyncio.sleep(send_interval)
                             success_count += 1
