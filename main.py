@@ -1014,14 +1014,23 @@ class MetingPlugin(Star):
                                 
 
                         mfile = await self._download_song(music_url,event.get_sender_id())
+                        if not temp_file:
+                            return
+
+                        
                         chain = [
                             Plain(f"{title}"),
                             Image.fromURL(preview),
-                            File(file=f"{mfile}", name=f"{title}.{file_type}"),
                             Plain(f"URL:\n{music_url}")
                         ]
 
                         yield event.chain_result(chain)
+
+                        yield event.plain_result("正在分段录制歌曲...")
+                        async for result in self._split_and_send_audio(
+                            event, temp_file, session_id
+                        ):
+                            yield result
                     
                     else:
                         yield event.plain_result(
