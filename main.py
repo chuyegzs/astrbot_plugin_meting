@@ -1636,7 +1636,7 @@ class MetingPlugin(Star):
             segment.export(segment_file, format="mp3",parameters=["-q:a","2"])
             #稍微壓縮以便檔案限制問題
             yield event.chain_result(File(
-                file:segment,name:{self.title}.mp3
+                file:segment,name:f"{self.title}.mp3"
             ))
                                     
             yield event.plain_result(f"發送已處理的音頻 {segment} : {segment_file}")
