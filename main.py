@@ -1634,10 +1634,13 @@ class MetingPlugin(Star):
         """
         try:
             segment.export(segment_file, format="mp3",parameters=["-q:a","2"])
+            FileRes=File(file=segment_file,name=f"{self.title}.mp3")
+            
+            logger.info(f"DebugFileR:{FileRes}")
             #稍微壓縮以便檔案限制問題
-            yield event.chain_result(File(
-                file:segment,name:f"{self.title}.mp3"
-            ))
+            yield event.chain_result(
+                FileRes
+            )
                                     
             yield event.plain_result(f"發送已處理的音頻 {segment} : {segment_file}")
             
