@@ -1013,7 +1013,7 @@ class MetingPlugin(Star):
                             file_type = "mp3"
                                 
 
-                        mfile = await _download_song(self,music_url)
+                        mfile = await _download_song(music_url,event.get_sender_id())
                         chain = [
                             Plain(f"{title}"),
                             Image.fromURL(preview),
