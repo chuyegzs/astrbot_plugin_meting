@@ -1717,13 +1717,14 @@ class MetingPlugin(Star):
 
                         try:
                             if os.path.exists(segment_file):
+                                yield event.chain_result(File(file=f"{segment_file}",name=f"{self.title}.mp3"))
+                                yield event.plain_result(f"發送已處理的音頻")
                                 os.remove(segment_file)
                             temp_files_to_cleanup.remove(segment_file)
                         except Exception:
                             pass
 
                     if success_count > 0:
-                        yield event.chain_result(File(file=f"{segment_file}",name=f"{self.title}.mp3"))
                         yield event.plain_result("歌曲播放完成")
 
                 except asyncio.CancelledError:
