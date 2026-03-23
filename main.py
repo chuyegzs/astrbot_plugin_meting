@@ -1012,11 +1012,12 @@ class MetingPlugin(Star):
                             logger.error(f"音樂请求异常: {e}")
                             file_type = "mp3"
                                 
-          
+
+                        mfile = await _download_song(self,music_url)
                         chain = [
                             Plain(f"{title}"),
                             Image.fromURL(preview),
-                            File(file=f"{music_url}", name=f"{title}.{file_type}"),
+                            File(file=f"{mfile}", name=f"{title}.{file_type}"),
                             Plain(f"URL:\n{music_url}")
                         ]
 
