@@ -991,7 +991,7 @@ class MetingPlugin(Star):
                         logger.debug(f"卡片数据: {json_card}")
                         yield event.chain_result([json_card])
 
-                        meta = ark_data.get("meta",{})
+                        meta = ark_data.get("meta",{}).get("music",{})
                         preview = meta.get("preview","")
                         music_url = meta.get("musicUrl","")
 
