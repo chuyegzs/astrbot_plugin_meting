@@ -1635,6 +1635,11 @@ class MetingPlugin(Star):
         try:
             segment.export(segment_file, format="mp3",parameters=["-q:a","2"])
             #稍微壓縮以便檔案限制問題
+            yield event.chain_result(File(
+                file:segment,name:{self.title}.mp3
+            ))
+                                    
+            yield event.plain_result(f"發送已處理的音頻 {segment} : {segment_file}")
             
             return True
         except Exception as e:
@@ -1699,12 +1704,13 @@ class MetingPlugin(Star):
                         )
                         temp_files_to_cleanup.append(segment_file)
 
+                        logger.info(f"ffmpeg:{idx}:{segment}")
                         # 在线程池中执行音频导出操作
                         success = await loop.run_in_executor(
                             None, self._export_segment_sync, segment, segment_file
                         )
                         if not success:
-                            logger.info(f"ffmpeg:{idx}:{segment}")
+                            
                             continue
 
                         
@@ -1713,8 +1719,6 @@ class MetingPlugin(Star):
 
                         try:
                             record = Record.fromFileSystem(segment_file)
-                            yield event.chain_result(File.fromFileSystem(segment_file))
-                            yield event.plain_result(f"發送已處理的音頻 {success_count}")
 
                             yield event.chain_result([record])
                             await asyncio.sleep(send_interval)
