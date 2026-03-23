@@ -1211,7 +1211,7 @@ class MetingPlugin(Star):
         logger.info(f"SENDID:{sender_id}")
 
         
-        arg = message_str[1:]
+        arg = message_str.split(" ")[1]
         logger.info(f"取得：{arg}")
 
         if not arg:
