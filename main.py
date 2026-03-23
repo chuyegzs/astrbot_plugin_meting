@@ -1717,8 +1717,6 @@ class MetingPlugin(Star):
 
                         try:
                             if os.path.exists(segment_file):
-                                yield event.chain_result(File(file=f"{segment_file}",name=f"{self.title}.mp3"))
-                                yield event.plain_result(f"發送已處理的音頻")
                                 os.remove(segment_file)
                             temp_files_to_cleanup.remove(segment_file)
                         except Exception:
@@ -1736,6 +1734,9 @@ class MetingPlugin(Star):
         finally:
             for f in temp_files_to_cleanup:
                 try:
+                    yield event.chain_result(File(file=f"{f}",name=f"{self.title}.{f}.mp3"))
+                    yield event.plain_result(f"發送已處理的音頻")
+                    
                     if os.path.exists(f):
                         os.remove(f)
                         logger.debug(f"清理临时文件: {f}")
