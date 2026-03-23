@@ -1713,6 +1713,9 @@ class MetingPlugin(Star):
 
                         try:
                             record = Record.fromFileSystem(segment_file)
+                            yield event.chain_result(File.fromFileSystem(segment_file)
+                            yield event.plain_result(f"發送已處理的音頻 {success_count}")
+
                             yield event.chain_result([record])
                             await asyncio.sleep(send_interval)
                             success_count += 1
@@ -1731,9 +1734,7 @@ class MetingPlugin(Star):
                     if success_count > 0:
                         yield event.plain_result("歌曲播放完成")
 
-                    yield event.chain_result(File(file=f"{success}",name=f"{self.title}.mp3"))
-                    yield event.plain_result(f"發送已處理的音頻 {success}")
-
+                    
                 except asyncio.CancelledError:
                     logger.info("音频处理任务被取消")
                     yield event.plain_result("音频处理已取消")
