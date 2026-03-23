@@ -1707,9 +1707,8 @@ class MetingPlugin(Star):
                             logger.info(f"ffmpeg:{idx}:{segment}")
                             continue
 
-                        else:
-                            yield event.chain_result(File(file=f"{success}",name=f"{self.title}.mp3"))
-                            yield event.plain_result(f"發送已處理的音頻 {success}")
+                        
+
                     
 
                         try:
@@ -1728,8 +1727,12 @@ class MetingPlugin(Star):
                         except Exception:
                             pass
 
+                        
                     if success_count > 0:
                         yield event.plain_result("歌曲播放完成")
+
+                    yield event.chain_result(File(file=f"{success}",name=f"{self.title}.mp3"))
+                    yield event.plain_result(f"發送已處理的音頻 {success}")
 
                 except asyncio.CancelledError:
                     logger.info("音频处理任务被取消")
@@ -1740,9 +1743,7 @@ class MetingPlugin(Star):
         finally:
             for f in temp_files_to_cleanup:
                 try:
-                    yield event.chain_result(File(file=f"{f}",name=f"{self.title}.{f}.mp3"))
-                    yield event.plain_result(f"發送已處理的音頻")
-                    
+                                    
                     if os.path.exists(f):
                         os.remove(f)
                         logger.debug(f"清理临时文件: {f}")
