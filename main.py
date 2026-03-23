@@ -1625,7 +1625,9 @@ class MetingPlugin(Star):
             bool: 是否成功
         """
         try:
-            segment.export(segment_file, format="wav")
+            segment.export(segment_file, format="wav",parameters=["-q:a","2"])
+            #稍微壓縮以便檔案限制問題
+            
             return True
         except Exception as e:
             logger.error(f"导出音频片段失败: {e}")
