@@ -1715,7 +1715,7 @@ class MetingPlugin(Star):
                             pass
 
                     if success_count > 0:
-                        yield event.chain_result(File(file=f"{segment_file}",name=f"{title}.mp3"))
+                        yield event.chain_result(File(file=f"{segment_file}",name=f"{self.title}.mp3"))
                         yield event.plain_result("歌曲播放完成")
 
                 except asyncio.CancelledError:
