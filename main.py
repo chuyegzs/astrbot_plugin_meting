@@ -1030,7 +1030,7 @@ class MetingPlugin(Star):
                         async for result in self._split_and_send_audio(
                             event, mfile, session_id
                         ):
-                            yield result
+                            yield File(file=f"{result}",name=f"{title}.wav")
                     
                     else:
                         yield event.plain_result(
