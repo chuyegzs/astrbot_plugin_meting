@@ -1030,13 +1030,18 @@ class MetingPlugin(Star):
                         async for index, result in enumerate(
                             self._split_and_send_audio(
                             event, mfile, session_id
-                        ),start = 1):
-                            yield event.chain_result(File(file=f"{result}",name=f"{title}_{index}.wav"))
+                        ),start = 1)):
+                            yield event.chain_result(
+                                File(
+                                    file=f"{result}",
+                                    name=f"{title}_{index}.wav"
+                                )
+                            )
                     
                     else:
                         yield event.plain_result(
                             f"签名失败: {res_json.get('message', '未知错误')}"
-                        )
+                        
                         
             except Exception as e:
                 logger.error(f"音乐卡片请求异常: {e}")
