@@ -1032,7 +1032,7 @@ class MetingPlugin(Star):
                             yield event.chain_result(
                                 File(
                                     file=f"{result}",
-                                    name=f"{title}.mp3"
+                                    name=f"{title}.{file_type}"
                                 )
                             )
                     
@@ -1691,7 +1691,7 @@ class MetingPlugin(Star):
                     for idx, segment in self._iterate_audio_segments(audio, segment_ms):
                         segment_file = os.path.join(
                             tempfile.gettempdir(),
-                            f"{base_name}_segment_{idx}_{uuid.uuid4()}.wav",
+                            f"{base_name}_segment_{idx}_{uuid.uuid4()}.mp3",
                         )
                         temp_files_to_cleanup.append(segment_file)
 
