@@ -1032,7 +1032,7 @@ class MetingPlugin(Star):
                             yield event.chain_result(
                                 File(
                                     file=f"{result}",
-                                    name=f"{title}.wav"
+                                    name=f"{title}.mp3"
                                 )
                             )
                     
@@ -1629,7 +1629,7 @@ class MetingPlugin(Star):
             bool: 是否成功
         """
         try:
-            segment.export(segment_file, format="wav",parameters=["-q:a","2"])
+            segment.export(segment_file, format="mp3",parameters=["-q:a","2"])
             #稍微壓縮以便檔案限制問題
             
             return True
