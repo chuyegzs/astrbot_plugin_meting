@@ -1030,7 +1030,7 @@ class MetingPlugin(Star):
                         async for index, result in enumerate(
                             self._split_and_send_audio(
                             event, mfile, session_id
-                        ),start = 1)):
+                        ,start = 1)):
                             yield event.chain_result(
                                 File(
                                     file=f"{result}",
