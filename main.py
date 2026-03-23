@@ -1014,7 +1014,7 @@ class MetingPlugin(Star):
                                 
 
                         mfile = await self._download_song(music_url,event.get_sender_id())
-                        if not temp_file:
+                        if not mfile:
                             return
 
                         
@@ -1028,7 +1028,7 @@ class MetingPlugin(Star):
 
                         yield event.plain_result("正在分段录制歌曲...")
                         async for result in self._split_and_send_audio(
-                            event, temp_file, session_id
+                            event, mfile, session_id
                         ):
                             yield result
                     
