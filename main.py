@@ -1713,7 +1713,7 @@ class MetingPlugin(Star):
 
                         try:
                             record = Record.fromFileSystem(segment_file)
-                            yield event.chain_result(File.fromFileSystem(segment_file)
+                            yield event.chain_result(File.fromFileSystem(segment_file))
                             yield event.plain_result(f"發送已處理的音頻 {success_count}")
 
                             yield event.chain_result([record])
