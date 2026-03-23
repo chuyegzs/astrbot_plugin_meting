@@ -1049,6 +1049,10 @@ class MetingPlugin(Star):
                 return
 
             yield event.plain_result("正在分段录制歌曲...")
+            self.title = title
+
+            logger.info(f"音樂標題：{title}")
+            
             async for result in self._split_and_send_audio(
                 event, temp_file, session_id
             ):
