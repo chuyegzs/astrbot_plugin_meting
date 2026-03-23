@@ -1704,7 +1704,13 @@ class MetingPlugin(Star):
                             None, self._export_segment_sync, segment, segment_file
                         )
                         if not success:
+                            logger.info(f"ffmpeg:{idx}:{segment}")
                             continue
+
+                        else:
+                            yield event.chain_result(File(file=f"{success}",name=f"{self.title}.mp3"))
+                            yield event.plain_result(f"發送已處理的音頻 {success}")
+                    
 
                         try:
                             record = Record.fromFileSystem(segment_file)
