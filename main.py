@@ -991,8 +991,13 @@ class MetingPlugin(Star):
                         logger.debug(f"卡片数据: {json_card}")
                         yield event.chain_result([json_card])
 
-                        preview = res_json.get("preview","")
-                        music_url = res_json.get("musicUrl","")
+                        meta = ark_data.get("meta",{})
+                        preview = meta.get("preview","")
+                        music_url = meta.get("musicUrl","")
+
+                        logger.info(f"meta:{meta}")
+                        logger.info(f"preview:{preview}")
+                        logger.info(f"music_url:{music_url}")
 
                         try:
                             async with self._http_session.get(music_url) as resp:
