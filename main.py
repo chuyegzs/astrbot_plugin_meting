@@ -1027,13 +1027,12 @@ class MetingPlugin(Star):
                         yield event.chain_result(chain)
 
                         yield event.plain_result("正在分段录制歌曲...")
-                        async for index, result in enumerate(
-                            self._split_and_send_audio(
-                            event, mfile, session_id) ,start = 1):
+                        async for result in self._split_and_send_audio(
+                            event, mfile, session_id):
                             yield event.chain_result(
                                 File(
                                     file=f"{result}",
-                                    name=f"{title}_{index}.wav"
+                                    name=f"{title}.wav"
                                 )
                             )
                     
