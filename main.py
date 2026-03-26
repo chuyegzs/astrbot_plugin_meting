@@ -14,7 +14,7 @@ from urllib.parse import parse_qs, urljoin, urlparse
 from packaging.version import parse as parse_version
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
-from astrbot.api.message_components import Json,Plain,Image,File
+from astrbot.api.message_components import Json,Plain,Image,File,Record
 from astrbot.api.star import Context, Star, register
 from astrbot.core.config.default import VERSION
 from astrbot.core.pipeline.respond import stage
@@ -1705,6 +1705,7 @@ class MetingPlugin(Star):
                             except Exception as e:
                                 logger.warning(f"发送语音片段 {idx} 语音格式失败，回退为文件发送: {e}")
                                 record = File.fromFileSystem(segment_file)
+
                             yield event.chain_result([record])
                             await asyncio.sleep(send_interval)
                             success_count += 1
