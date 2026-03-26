@@ -907,12 +907,13 @@ class MetingPlugin(Star):
             yield event.plain_result(f"歌曲地址无效: {reason}")
             return
 
+        title = song.get("name") or song.get("title") or "未知"
+        artist = song.get("artist") or song.get("author") or "未知歌手"
+        cover = song.get("pic", "")
+        source = song.get("source") or await self._get_session_source(session_id)
+        
         # 音乐卡片
         if self.use_music_card():
-            title = song.get("name") or song.get("title") or "未知"
-            artist = song.get("artist") or song.get("author") or "未知歌手"
-            cover = song.get("pic", "")
-            source = song.get("source") or await self._get_session_source(session_id)
 
             if cover:
                 # 设置封面 URL
@@ -1013,7 +1014,6 @@ class MetingPlugin(Star):
                         yield event.chain_result(chain)
 
                         yield event.plain_result("正在分段录制歌曲...")
-                        self.title = title
 
                         logger.info(f"Music:{title}")
                         
@@ -1039,7 +1039,6 @@ class MetingPlugin(Star):
                 return
 
             yield event.plain_result("正在分段录制歌曲...")
-            self.title = title
 
             logger.info(f"音樂標題：{title}")
             
