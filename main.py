@@ -1214,8 +1214,14 @@ class MetingPlugin(Star):
         logger.info(f"SESID:{session_id}")
         logger.info(f"SENDID:{sender_id}")
 
+        parts = message_str.split(maxsplit=1)
+        if len(parts) > 1:
+            arg = parts[1]
+        else:
+            logger.info(f"參數是空的 使用第一個")
+            arg = "1"
+
         
-        arg = message_str.split(maxsplit=1)[1]
         logger.info(f"取得：{arg}")
 
         if not arg:
@@ -1360,7 +1366,13 @@ class MetingPlugin(Star):
         session_id = event.unified_msg_origin
         sender_id = event.get_sender_id()
 
-        keyword = message_str.split(maxsplit=1)[1]
+        parts = message_str.split(maxsplit=1)
+        if len(parts) > 1:
+            keyword = parts[1]
+        else:
+            keyword = ""
+
+        
 
         if not keyword:
             yield event.plain_result("请输入要搜索的歌曲名称，例如：搜歌 一期一会")
