@@ -1018,7 +1018,7 @@ class MetingPlugin(Star):
                         logger.info(f"Music:{title}")
                         
                         async for result in self._split_and_send_audio(
-                            event, mfile, session_id):
+                            event, mfile, session_id,title):
                             
                             yield result
                     
@@ -1642,7 +1642,7 @@ class MetingPlugin(Star):
             return False
 
     async def _split_and_send_audio(
-        self, event: AstrMessageEvent, temp_file: str, session_id: str
+        self, event: AstrMessageEvent, temp_file: str, session_id: str,title:str = "Default"
     ):
         """分割音频并发送
 
@@ -1650,6 +1650,7 @@ class MetingPlugin(Star):
             event: 消息事件
             temp_file: 音频文件路径
             session_id: 会话 ID，用于获取会话级别的锁
+            title: 音樂標題 給發送檔案使用的
         """
         temp_files_to_cleanup = [temp_file]
 
@@ -1727,7 +1728,7 @@ class MetingPlugin(Star):
 
                             if use_file:
                                 logger.info(f"使用檔案 {segment_file}")
-                                record = File(file=segment_file,name=f"{self.title}.{export_file_type}")
+                                record = File(file=segment_file,name=f"{title}.{export_file_type}")
 
                             else:
                                 logger.info(f"使用語音 {segment_file}")
