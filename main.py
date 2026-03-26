@@ -1719,12 +1719,16 @@ class MetingPlugin(Star):
 
                         try:
                             api_config = self._get_api_config()
-                            use_file = api_config.get("api_url","false")
+                            use_file = api_config.get("use_file","false")
+                            export_file_type = api_config.get("export_file_type","wav")
+
                             # 從配置確認發送檔案還語音訊息
+                            logger.info(f"檔案格式 {export_file_type}")
 
                             if use_file:
                                 logger.info(f"使用檔案 {segment_file}")
-                                record = File.fromFileSystem(segment_file)
+                                record = File(file=segment_file,name=f"{self.title}.{export_file_type}")
+
                             else:
                                 logger.info(f"使用語音 {segment_file}")
                                 record = Record.fromFileSystem(segment_file)
