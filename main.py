@@ -1629,8 +1629,7 @@ class MetingPlugin(Star):
         """
         try:
             # 同步导出音频片段到指定文件
-            api_config = self._get_api_config()
-            export_file_type = api_config.get("export_file_type","wav")
+            export_file_type = self._get_config("export_file_type")
 
             logger.info(f"Exporting audio segment to file: {segment_file}")
             segment.export(segment_file, format=export_file_type, parameters=["-q:a", "2"])
@@ -1694,8 +1693,7 @@ class MetingPlugin(Star):
 
                     success_count = 0
 
-                    api_config = self._get_api_config()
-                    export_file_type = api_config.get("export_file_type","wav")
+                    export_file_type = self._get_config("export_file_type")
 
                     for idx, segment in self._iterate_audio_segments(audio, segment_ms):
                         segment_file = os.path.join(
@@ -1719,9 +1717,9 @@ class MetingPlugin(Star):
                     
 
                         try:
-                            api_config = self._get_api_config()
-                            use_file = api_config.get("use_file",False)
-                            export_file_type = api_config.get("export_file_type","wav")
+                            
+                            use_file = self._get_config("use_file")
+                            export_file_type = self._get_config("export_file_type")
 
                             # 從配置確認發送檔案還語音訊息
                             logger.info(f"使用檔案? {use_file}")
