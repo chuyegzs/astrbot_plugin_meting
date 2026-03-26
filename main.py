@@ -1629,7 +1629,7 @@ class MetingPlugin(Star):
         """
         try:
             # 同步导出音频片段到指定文件
-            api_config = self._get_api_config
+            api_config = self._get_api_config()
             export_file_type = api_config.get("export_file_type","wav")
 
             logger.info(f"Exporting audio segment to file: {segment_file}")
@@ -1693,7 +1693,7 @@ class MetingPlugin(Star):
 
                     success_count = 0
 
-                    api_config = self._get_api_config
+                    api_config = self._get_api_config()
                     export_file_type = api_config.get("export_file_type","wav")
 
                     for idx, segment in self._iterate_audio_segments(audio, segment_ms):
