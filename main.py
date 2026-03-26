@@ -1617,9 +1617,13 @@ class MetingPlugin(Star):
         """
         try:
             # 同步导出音频片段到指定文件
+            api_config = self._get_api_config
+            export_file_type = api_config.get("export_file_type","wav")
+
             logger.info(f"Exporting audio segment to file: {segment_file}")
-            segment.export(segment_file, format="mp3", parameters=["-q:a", "2"])
+            segment.export(segment_file, format=export_file_type, parameters=["-q:a", "2"])
             # 稍微压缩以便满足文件大小限制（通过 export 参数实现）
+
             return True
         except Exception as e:
             logger.error(f"导出音频片段失败: {e}")
@@ -1677,10 +1681,13 @@ class MetingPlugin(Star):
 
                     success_count = 0
 
+                    api_config = self._get_api_config
+                    export_file_type = api_config.get("export_file_type","wav")
+
                     for idx, segment in self._iterate_audio_segments(audio, segment_ms):
                         segment_file = os.path.join(
                             tempfile.gettempdir(),
-                            f"{base_name}_segment_{idx}_{uuid.uuid4()}.mp3",
+                            f"{base_name}_segment_{idx}_{uuid.uuid4()}.{export_file_type}",
                         )
                         temp_files_to_cleanup.append(segment_file)
 
@@ -1699,12 +1706,17 @@ class MetingPlugin(Star):
                     
 
                         try:
-                            # 优先尝试以语音消息方式发送，失败则回退为文件发送
-                            try:
-                                record = Record.fromFileSystem(segment_file)
-                            except Exception as e:
-                                logger.warning(f"发送语音片段 {idx} 语音格式失败，回退为文件发送: {e}")
+                            api_config = self._get_api_config()
+                            use_file = api_config.get("api_url","false")
+                            # 從配置確認發送檔案還語音訊息
+
+                            if use_file:
+                                logger.info(f"使用檔案 {segment_file}")
                                 record = File.fromFileSystem(segment_file)
+                            else:
+                                logger.info(f"使用語音 {segment_file}")
+                                record = Record.fromFileSystem(segment_file)
+
 
                             yield event.chain_result([record])
                             await asyncio.sleep(send_interval)

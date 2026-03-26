@@ -35,6 +35,19 @@
       }
     }
   },
+  "use_file": {
+      "description": "使用檔案",
+      "type": "bool",
+      "hint": "如果你發現不支持 語音訊息 可以開啟此改用檔案",
+      "default": "false"
+  },
+  "export_file_type": {
+      "description": "導出檔案類型",
+      "type": "string",
+      "hint": "預設是wav給語音訊息用的 如果你要用檔案可以考慮改成mp3",
+      "default": "wav"
+  },
+    
   "default_source": {
     "description": "默认音源",
     "type": "string",
