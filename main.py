@@ -14,7 +14,7 @@ from urllib.parse import parse_qs, urljoin, urlparse
 from packaging.version import parse as parse_version
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
-from astrbot.api.message_components import Json, Record,Plain,Image,File
+from astrbot.api.message_components import Json,Plain,Image,File
 from astrbot.api.star import Context, Star, register
 from astrbot.core.config.default import VERSION
 from astrbot.core.pipeline.respond import stage
