@@ -39,7 +39,7 @@
       "description": "使用檔案",
       "type": "bool",
       "hint": "如果你發現不支持 語音訊息 可以開啟此改用檔案",
-      "default": "false"
+      "default": false
   },
   "export_file_type": {
       "description": "導出檔案類型",
