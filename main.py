@@ -999,20 +999,6 @@ class MetingPlugin(Star):
                         logger.info(f"preview:{preview}")
                         logger.info(f"music_url:{music_url}")
 
-                        try:
-                            async with self._http_session.get(music_url) as resp:
-                                if resp.status != 200:
-                                    yield event.plain_result(f"音樂请求失败: {resp.status}")
-                                    return
-                                res_data = await resp.content.read(4096)  # 只讀前4KB判斷格式
-                                file_type = _detect_audio_format(res_data)
-                                logger.info(f"Type:{file_type}")
-                                
-                        except Exception as e:
-                            logger.error(f"音樂请求异常: {e}")
-                            file_type = "mp3"
-                                
-
                         mfile = await self._download_song(music_url,event.get_sender_id())
                         if not mfile:
                             return
