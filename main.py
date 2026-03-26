@@ -1619,14 +1619,10 @@ class MetingPlugin(Star):
             bool: 是否成功
         """
         try:
-            logger.info(f"DebugFileR:{FileRes}\n{segment_file}")
-            segment.export(segment_file, format="mp3",parameters=["-q:a","2"])
-            
-            #稍微壓縮以便檔案限制問題
-            
-            yield event.plain_result(f"發送已處理的音頻 {segment} : {segment_file}")
-
-
+            # 同步导出音频片段到指定文件
+            logger.info(f"Exporting audio segment to file: {segment_file}")
+            segment.export(segment_file, format="mp3", parameters=["-q:a", "2"])
+            # 稍微压缩以便满足文件大小限制（通过 export 参数实现）
             return True
         except Exception as e:
             logger.error(f"导出音频片段失败: {e}")
