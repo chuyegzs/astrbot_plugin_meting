@@ -1360,10 +1360,7 @@ class MetingPlugin(Star):
         session_id = event.unified_msg_origin
         sender_id = event.get_sender_id()
 
-        if message_str.startswith("搜歌"):
-            keyword = message_str[2:].strip()
-        else:
-            keyword = message_str
+        keyword = message_str.split(maxsplit=1)
 
         if not keyword:
             yield event.plain_result("请输入要搜索的歌曲名称，例如：搜歌 一期一会")
