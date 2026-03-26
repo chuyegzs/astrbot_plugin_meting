@@ -1720,7 +1720,12 @@ class MetingPlugin(Star):
                     
 
                         try:
-                            record = File.fromFileSystem(segment_file)
+                            # 优先尝试以语音消息方式发送，失败则回退为文件发送
+                            try:
+                                record = Record.fromFileSystem(segment_file)
+                            except Exception as e:
+                                logger.warning(f"发送语音片段 {idx} 语音格式失败，回退为文件发送: {e}")
+                                record = File.fromFileSystem(segment_file)
                             yield event.chain_result([record])
                             await asyncio.sleep(send_interval)
                             success_count += 1
