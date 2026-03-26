@@ -1064,7 +1064,7 @@ class MetingPlugin(Star):
             logger.error(f"播放歌曲时发生错误: {e}", exc_info=True)
             yield event.plain_result("播放失败，请稍后重试")
 
-    @filter.command("toqqmusic", alias={"切换腾讯音乐", "切换QQMusic"})
+    @filter.command("切换QQ音乐", alias={"切换腾讯音乐", "切换QQMusic","toqqmusic"})
     async def switch_tencent(self, event: AstrMessageEvent):
         """切换当前会话的音源为QQ音乐"""
         await self._ensure_initialized()
@@ -1073,13 +1073,14 @@ class MetingPlugin(Star):
         yield event.plain_result("已切换音源为QQ音乐")
 
     @filter.command(
-        "to163",
+        "切换网易云",
         alias={
             "切换网易",
             "切换网易云音乐",
             "切换网抑云",
             "切换网抑云音乐",
             "切换CloudMusic",
+            "to163"
         },
     )
     async def switch_netease(self, event: AstrMessageEvent):
@@ -1089,7 +1090,7 @@ class MetingPlugin(Star):
         await self._set_session_source(session_id, "netease")
         yield event.plain_result("已切换音源为网易云")
 
-    @filter.command("tocodog", alias={"切换酷狗音乐"})
+    @filter.command("切换酷狗", alias={"切换酷狗音乐","tocodog"})
     async def switch_kugou(self, event: AstrMessageEvent):
         """切换当前会话的音源为酷狗"""
         await self._ensure_initialized()
@@ -1097,7 +1098,7 @@ class MetingPlugin(Star):
         await self._set_session_source(session_id, "kugou")
         yield event.plain_result("已切换音源为酷狗")
 
-    @filter.command("tocowa", alias={"切换酷我音乐"})
+    @filter.command("切换酷我", alias={"切换酷我音乐","tocowa"})
     async def switch_kuwo(self, event: AstrMessageEvent):
         """切换当前会话的音源为酷我"""
         await self._ensure_initialized()
@@ -1143,7 +1144,7 @@ class MetingPlugin(Star):
         ):
             yield result
 
-    @filter.command("163song", alias={"网易云点歌", "网抑云点歌", "网易云音乐点歌"})
+    @filter.command("网易点歌", alias={"网易云点歌", "网抑云点歌", "网易云音乐点歌","163song"})
     async def play_netease_first_song(self, event: AstrMessageEvent):
         """网易云点歌"""
         async for result in self._handle_specific_source_play(
@@ -1151,7 +1152,7 @@ class MetingPlugin(Star):
         ):
             yield result
 
-    @filter.command("qqsong", alias={"QQ点歌", "QQ音乐点歌", "腾讯音乐点歌"})
+    @filter.command("腾讯点歌", alias={"QQ点歌", "QQ音乐点歌", "腾讯音乐点歌","qqsong"})
     async def play_tencent_first_song(self, event: AstrMessageEvent):
         """QQ音乐点歌"""
         async for result in self._handle_specific_source_play(
@@ -1159,7 +1160,7 @@ class MetingPlugin(Star):
         ):
             yield result
 
-    @filter.command("codogsong", alias={"酷狗音乐点歌"})
+    @filter.command("酷狗点歌", alias={"酷狗音乐点歌","codogsong"})
     async def play_kugou_first_song(self, event: AstrMessageEvent):
         """酷狗点歌"""
         async for result in self._handle_specific_source_play(
@@ -1167,7 +1168,7 @@ class MetingPlugin(Star):
         ):
             yield result
 
-    @filter.command("cowasong", alias={"酷我音乐点歌"})
+    @filter.command("酷我点歌", alias={"酷我音乐点歌","cowasong"})
     async def play_kuwo_first_song(self, event: AstrMessageEvent):
         """酷我点歌"""
         async for result in self._handle_specific_source_play(
@@ -1175,7 +1176,7 @@ class MetingPlugin(Star):
         ):
             yield result
 
-    @filter.command("song_help", alias={"点歌帮助", "点歌说明", "点歌指南", "点歌菜单"})
+    @filter.command("点歌指令", alias={"点歌帮助", "点歌说明", "点歌指南", "点歌菜单","song_help"})
     async def show_commands(self, event: AstrMessageEvent):
         # 显示所有可用指令
         commands = [
@@ -1201,7 +1202,7 @@ class MetingPlugin(Star):
         ]
         yield event.plain_result("\n".join(commands))
 
-    @filter.command("song_ns",alias={"点歌", "點歌"})
+    @filter.command("点歌",alias={"点歌", "點歌","song_ns"})
     async def play_song_cmd(self, event: AstrMessageEvent):
         """点歌指令，支持序号或歌名"""
         await self._ensure_initialized()
@@ -1347,7 +1348,7 @@ class MetingPlugin(Star):
         if msg_to_delete and event:
             await self._delete_search_msg(event, msg_to_delete)
 
-    @filter.command("搜歌")
+    @filter.command("搜歌",alias={"search_songs"})
     async def search_song(self, event: AstrMessageEvent):
         """搜索歌曲（搜歌 xxx格式）
 
