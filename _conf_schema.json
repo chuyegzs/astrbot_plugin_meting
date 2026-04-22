@@ -44,7 +44,7 @@
   "use_music_card": {
     "description": "使用音乐卡片",
     "type": "bool",
-    "hint": "是否使用音乐卡片显示搜索结果，默认启用",
+    "hint": "是否使用音乐卡片显示搜索结果，默认启用。（注意：LLM 不遵循此开关，它强制使用音乐卡片。）",
     "default": true
   },
   "api_sign_url": {

@@ -170,7 +170,7 @@ def _get_extension_from_format(audio_format: str | None) -> str:
 T = TypeVar("T")
 
 
-@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.0.8")
+@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.1.0")
 class MetingPlugin(Star):
     """MetingAPI 点歌插件
 
@@ -888,7 +888,11 @@ class MetingPlugin(Star):
             return None
 
     async def _play_song_logic(
-        self, event: AstrMessageEvent, song: dict, session_id: str
+        self,
+        event: AstrMessageEvent,
+        song: dict,
+        session_id: str,
+        force_card: bool = False,
     ):
         """播放歌曲的通用逻辑"""
         song_url = song.get("url")
@@ -906,7 +910,7 @@ class MetingPlugin(Star):
             return
 
         # 音乐卡片
-        if self.use_music_card():
+        if self.use_music_card() or force_card:
             title = song.get("name") or song.get("title") or "未知"
             artist = song.get("artist") or song.get("author") or "未知歌手"
             cover = song.get("pic", "")
@@ -1025,7 +1029,10 @@ class MetingPlugin(Star):
             logger.error(f"播放歌曲时发生错误: {e}", exc_info=True)
             yield event.plain_result("播放失败，请稍后重试")
 
-    @filter.command("切换QQ音乐", alias={"切换腾讯音乐", "切换QQMusic"})
+    @filter.command(
+        "切换QQ音乐",
+        alias={"切换腾讯音乐", "切换QQMusic", "switch tencent", "switch qqmusic"},
+    )
     async def switch_tencent(self, event: AstrMessageEvent):
         """切换当前会话的音源为QQ音乐"""
         await self._ensure_initialized()
@@ -1041,6 +1048,8 @@ class MetingPlugin(Star):
             "切换网抑云",
             "切换网抑云音乐",
             "切换CloudMusic",
+            "switch netease",
+            "switch cloudmusic",
         },
     )
     async def switch_netease(self, event: AstrMessageEvent):
@@ -1050,7 +1059,7 @@ class MetingPlugin(Star):
         await self._set_session_source(session_id, "netease")
         yield event.plain_result("已切换音源为网易云")
 
-    @filter.command("切换酷狗", alias={"切换酷狗音乐"})
+    @filter.command("切换酷狗", alias={"切换酷狗音乐", "switch kugou"})
     async def switch_kugou(self, event: AstrMessageEvent):
         """切换当前会话的音源为酷狗"""
         await self._ensure_initialized()
@@ -1058,7 +1067,7 @@ class MetingPlugin(Star):
         await self._set_session_source(session_id, "kugou")
         yield event.plain_result("已切换音源为酷狗")
 
-    @filter.command("切换酷我", alias={"切换酷我音乐"})
+    @filter.command("切换酷我", alias={"切换酷我音乐", "switch kuwo"})
     async def switch_kuwo(self, event: AstrMessageEvent):
         """切换当前会话的音源为酷我"""
         await self._ensure_initialized()
@@ -1104,39 +1113,79 @@ class MetingPlugin(Star):
         ):
             yield result
 
-    @filter.command("网易点歌", alias={"网易云点歌", "网抑云点歌", "网易云音乐点歌"})
+    @filter.command(
+        "网易点歌",
+        alias={
+            "网易云点歌",
+            "网抑云点歌",
+            "网易云音乐点歌",
+            "netease play",
+            "netease song",
+        },
+    )
     async def play_netease_first_song(self, event: AstrMessageEvent):
         """网易云点歌"""
         async for result in self._handle_specific_source_play(
-            event, "netease", ["网易云音乐点歌", "网易云点歌", "网抑云点歌", "网易点歌"]
+            event,
+            "netease",
+            [
+                "网易云音乐点歌",
+                "网易云点歌",
+                "网抑云点歌",
+                "网易点歌",
+                "netease play",
+                "netease song",
+            ],
         ):
             yield result
 
-    @filter.command("腾讯点歌", alias={"QQ点歌", "QQ音乐点歌", "腾讯音乐点歌"})
+    @filter.command(
+        "腾讯点歌",
+        alias={"QQ点歌", "QQ音乐点歌", "腾讯音乐点歌", "tencent play", "qq play"},
+    )
     async def play_tencent_first_song(self, event: AstrMessageEvent):
         """QQ音乐点歌"""
         async for result in self._handle_specific_source_play(
-            event, "tencent", ["腾讯音乐点歌", "QQ音乐点歌", "腾讯点歌", "QQ点歌"]
+            event,
+            "tencent",
+            [
+                "腾讯音乐点歌",
+                "QQ音乐点歌",
+                "腾讯点歌",
+                "QQ点歌",
+                "tencent play",
+                "qq play",
+            ],
         ):
             yield result
 
-    @filter.command("酷狗点歌", alias={"酷狗音乐点歌"})
+    @filter.command("酷狗点歌", alias={"酷狗音乐点歌", "kugou play"})
     async def play_kugou_first_song(self, event: AstrMessageEvent):
         """酷狗点歌"""
         async for result in self._handle_specific_source_play(
-            event, "kugou", ["酷狗音乐点歌", "酷狗点歌"]
+            event, "kugou", ["酷狗音乐点歌", "酷狗点歌", "kugou play"]
         ):
             yield result
 
-    @filter.command("酷我点歌", alias={"酷我音乐点歌"})
+    @filter.command("酷我点歌", alias={"酷我音乐点歌", "kuwo play"})
     async def play_kuwo_first_song(self, event: AstrMessageEvent):
         """酷我点歌"""
         async for result in self._handle_specific_source_play(
-            event, "kuwo", ["酷我音乐点歌", "酷我点歌"]
+            event, "kuwo", ["酷我音乐点歌", "酷我点歌", "kuwo play"]
         ):
             yield result
 
-    @filter.command("点歌指令", alias={"点歌帮助", "点歌说明", "点歌指南", "点歌菜单"})
+    @filter.command(
+        "点歌指令",
+        alias={
+            "点歌帮助",
+            "点歌说明",
+            "点歌指南",
+            "点歌菜单",
+            "song help",
+            "meting help",
+        },
+    )
     async def show_commands(self, event: AstrMessageEvent):
         # 显示所有可用指令
         commands = [
@@ -1162,7 +1211,7 @@ class MetingPlugin(Star):
         ]
         yield event.plain_result("\n".join(commands))
 
-    @filter.command("点歌")
+    @filter.command("点歌", alias={"play", "play song"})
     async def play_song_cmd(self, event: AstrMessageEvent):
         """点歌指令，支持序号或歌名"""
         await self._ensure_initialized()
@@ -1173,6 +1222,10 @@ class MetingPlugin(Star):
 
         if message_str.startswith("点歌"):
             arg = message_str[2:].strip()
+        elif message_str.startswith("play song"):
+            arg = message_str[9:].strip()
+        elif message_str.startswith("play"):
+            arg = message_str[4:].strip()
         else:
             arg = message_str
 
@@ -1305,7 +1358,7 @@ class MetingPlugin(Star):
         if msg_to_delete and event:
             await self._delete_search_msg(event, msg_to_delete)
 
-    @filter.command("搜歌")
+    @filter.command("搜歌", alias={"search", "search song"})
     async def search_song(self, event: AstrMessageEvent):
         """搜索歌曲（搜歌 xxx格式）
 
@@ -1320,6 +1373,10 @@ class MetingPlugin(Star):
 
         if message_str.startswith("搜歌"):
             keyword = message_str[2:].strip()
+        elif message_str.startswith("search song"):
+            keyword = message_str[11:].strip()
+        elif message_str.startswith("search"):
+            keyword = message_str[6:].strip()
         else:
             keyword = message_str
 
@@ -1365,7 +1422,6 @@ class MetingPlugin(Star):
                                 group_id=int(group_id), message=message
                             )
                         else:
-                            # 私聊 注意：AiocqhttpMessageEvent 的 session_id 通常是 user_id
                             if event.session_id and event.session_id.isdigit():
                                 ret = await bot.send_private_msg(
                                     user_id=int(event.session_id), message=message
@@ -1681,6 +1737,73 @@ class MetingPlugin(Star):
                         logger.debug(f"清理临时文件: {f}")
                 except Exception:
                     pass
+
+    @filter.llm_tool("astr_meting_music")
+    async def astr_meting_music(
+        self,
+        event: AstrMessageEvent,
+        keyword: str,
+        source: str = "netease",
+        index: int = -1,
+    ) -> str:
+        """这是一个用于搜索和播放音乐的函数。
+        搜索音乐：你可以通过提供 keyword (如歌曲名或歌手) 和 source (点歌源： netease, tencent 默认 netease)，不要提供 index (保留为 -1)或将 index 指定为 -1 来进行搜索。函数将返回由搜索到的结果列表（包含序号、歌名、歌手等）的 JSON 数据给你。
+        播放音乐：你可以通过提供 keyword, source 以及 index (从 0 开始计数的有效序号)。函数将直接通过插件向用户发送音乐卡片。
+        至于音乐源和点搜索结果内的哪一首歌，你可以自行判断，也可以询问用户喔。
+        注意：点歌成功时函数会返回“点歌任务执行成功！”，此时意味着音乐已发送，这时你无需再进行任何回复。
+
+        Args:
+            keyword (string): 搜索关键词（歌手名、歌曲名等）
+            source (string): 音乐源，必须是 netease, tencent 之一
+            index (number): 歌曲序号。-1 表示仅搜索，0 表示第一首，依次类推
+        """
+        try:
+            if source not in SOURCE_DISPLAY:
+                return f"不支持的点歌源：{source}，请从 netease, tencent 中选择。"
+
+            results = await self._perform_search(keyword, source)
+            if not results:
+                return "未搜索到任何相关歌曲。"
+
+            if index < 0:
+                import json
+
+                summary_results = []
+                for i, r in enumerate(results[: self.get_search_result_count()]):
+                    title = r.get("name") or r.get("title") or "未知"
+                    raw_artist = r.get("artist") or r.get("author") or "未知"
+                    artist_str = (
+                        ", ".join(raw_artist)
+                        if isinstance(raw_artist, list)
+                        else str(raw_artist)
+                    )
+                    item = {"index": i, "name": title, "artist": artist_str}
+                    if r.get("album"):
+                        item["album"] = r.get("album")
+                    if r.get("source"):
+                        item["source"] = r.get("source")
+                    if r.get("duration"):
+                        item["duration"] = r.get("duration")
+                    summary_results.append(item)
+                return json.dumps(summary_results, ensure_ascii=False)
+
+            if index >= len(results):
+                return f"指定的序号 {index} 超出搜索结果范围，最大可选序号为 {len(results) - 1}。"
+
+            target_song = results[index]
+            target_song["source"] = source
+            session_id = event.unified_msg_origin
+
+            async for result in self._play_song_logic(
+                event, target_song, session_id, force_card=True
+            ):
+                await event.send(result)
+
+            return "点歌任务执行成功！"
+
+        except Exception as e:
+            logger.error(f"音乐搜索/播放失败：{e}", exc_info=True)
+            return f"发生了错误：{e}"
 
     async def terminate(self):
         """插件终止时清理资源"""
