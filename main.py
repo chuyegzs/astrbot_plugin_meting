@@ -1791,6 +1791,7 @@ class MetingPlugin(Star):
                 return f"指定的序号 {index} 超出搜索结果范围，最大可选序号为 {len(results) - 1}。"
 
             target_song = results[index]
+            target_song["source"] = source
             session_id = event.unified_msg_origin
 
             async for result in self._play_song_logic(
