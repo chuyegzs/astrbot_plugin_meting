@@ -1753,9 +1753,9 @@ class MetingPlugin(Star):
         注意：点歌成功时函数会返回“点歌任务执行成功！”，此时意味着音乐已发送，这时你无需再进行任何回复。
 
         Args:
-            keyword: 搜索关键词（歌手名、歌曲名等）
-            source: 音乐源，必须是 netease, tencent 之一
-            index: 歌曲序号。-1 表示仅搜索，0 表示第一首，依次类推
+            keyword (string): 搜索关键词（歌手名、歌曲名等）
+            source (string): 音乐源，必须是 netease, tencent 之一
+            index (number): 歌曲序号。-1 表示仅搜索，0 表示第一首，依次类推
         """
         try:
             if source not in SOURCE_DISPLAY:
