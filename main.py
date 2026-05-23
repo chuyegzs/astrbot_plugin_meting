@@ -112,7 +112,7 @@ class SessionData:
 T = TypeVar("T")
 
 
-@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.1.0")
+@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.1.1")
 class MetingPlugin(Star):
     """MetingAPI 点歌插件
 
