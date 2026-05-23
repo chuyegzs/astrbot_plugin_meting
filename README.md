@@ -1,267 +1,383 @@
-# 初叶🍂 MetingAPI 点歌插件
+<!-- omit in toc -->
+# 🍂 初叶 MetingAPI 点歌插件
 
-基于 MetingAPI 的点歌插件，支持QQ音乐、网易云、酷狗、酷我等音源。
+<p align="center">
+  <img src="https://img.shields.io/badge/version-v1.1.1-blue?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/AstrBot-≥4.17.6-green?style=flat-square" alt="AstrBot">
+  <img src="https://img.shields.io/badge/license-MIT-orange?style=flat-square" alt="License">
+  <img src="https://img.shields.io/badge/python-3.10+-steelblue?style=flat-square" alt="Python">
+</p>
 
-**当前版本：v1.1.0**
+<p align="center">
+  <b>基于 MetingAPI 的多音源点歌插件</b><br>
+  支持 QQ 音乐 · 网易云 &nbsp;|&nbsp; 智能语音分段 &nbsp;|&nbsp; 精美音乐卡片
+</p>
+
+---
 
 > [!WARNING]
-> ## 兼容性声明
-> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;·&nbsp;因 AstrBot 旧版本缺失对 JSON 消息的兼容性，所以要使用音乐卡片功能，您必须确保您的 AstrBot 版本在 `4.17.6` 以上。<p>
-> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;·&nbsp;在遇到问题时，请打开 DEBUG 日志并检查插件输出的兼容性检查结果。<p>
-> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;·&nbsp;如果需要帮助，提交 ISSUE 时请附带插件日志，和插件输出的兼容性检查结果，并说明目前 AstrBot 版本及插件版本。<p>
+> **兼容性声明**
+> - 使用音乐卡片功能，AstrBot 版本须 ≥ `4.17.6`
+> - 遇到问题时请开启 **DEBUG 日志**，查看兼容性检查结果
+> - 提交 Issue 时请附带：插件日志、兼容性检查结果、AstrBot & 插件版本、消息平台框架
 
-## 音乐卡片说明（推荐使用，因为转语音音质打折扣）
+<!-- omit in toc -->
+## 📑 目录
 
-- 音乐卡片功能默认开启
-- 开启后，用户输入“搜歌 xxx（歌名）”，再次输入“点歌 x（搜索列表歌曲位置，数字排列）”，会收到包含音乐信息的卡片，点击卡片的歌曲封面上的播放按钮可以直接播放音乐
+- [✨ 功能特性](#-功能特性)
+- [📦 安装](#-安装)
+- [🎮 使用方法](#-使用方法)
+  - [📋 指令速查表](#-指令速查表)
+  - [🔍 搜索歌曲](#-搜索歌曲)
+  - [▶️ 播放歌曲](#️-播放歌曲)
+  - [🔄 切换音源](#-切换音源)
+  - [🎨 音乐卡片](#-音乐卡片)
+  - [🤖 LLM 调用](#-llm-调用)
+- [⚙️ 配置说明](#️-配置说明)
+  - [API 配置](#api-配置)
+  - [搜索配置](#搜索配置)
+  - [音乐发送配置](#音乐发送配置)
+  - [下载与缓存配置](#下载与缓存配置)
+  - [语音分段配置](#语音分段配置)
+- [🔧 技术说明](#-技术说明)
+- [❓ 常见问题](#-常见问题)
+- [📂 项目结构](#-项目结构)
+- [🙏 致谢](#-致谢)
+- [📜 许可证](#-许可证)
 
-## 功能特性
+---
 
-- 支持多音源：QQ音乐、网易云、酷狗、酷我（具体需要 API 支持）
-- 会话级音源切换，不影响其他会话
-- 智能语音分段发送，自动处理超过2分钟的歌曲
-- 支持音乐卡片显示（可选）
-- 快捷点歌指令，直接指定音源搜索
-- 简单易用的命令交互
-- 支持两种 API 类型，并支持自定义调用参数，最大限度兼容各种 MetingAPI
+## ✨ 功能特性
 
-## 安装
+| 特性 | 说明 |
+|------|------|
+| 🎵 **多音源支持** | QQ 音乐、网易云、酷狗、酷我（取决于 API） |
+| 💬 **会话级音源** | 每个会话独立切换音源，互不影响 |
+| ✂️ **智能分段** | 超长歌曲自动分割发送，支持 30~300s 可配置分段 |
+| 🎨 **音乐卡片** | 精美卡片消息，含封面、歌手、跳转链接 |
+| ⚡ **快捷点歌** | 一键指定音源直接点歌，无需切换 |
+| 🤖 **LLM 友好** | 提供 Function Tool，AI 可直接调用搜歌/点歌 |
+| 🗑️ **自动撤回** | 搜索结果定时撤回，保持聊天整洁 |
+| 🔒 **结果隔离** | 可选搜歌结果仅对搜索者本人有效 |
+| 📁 **文件直传** | 支持以文件方式发送音乐，绕过语音限制 |
+| 💾 **缓存机制** | 可选缓存已下载音乐，减少带宽消耗 |
 
-1. （1）将插件目录 `astrbot_plugin_meting` 放入 AstrBot 的 `data/plugins` 目录
-（2）WebUI中从链接安装:https://github.com/chuyegzs/astrbot_plugin_meting/
-2. 在 AstrBot WebUI 的插件管理处启用该插件
-3. 在插件配置中设置 MetingAPI 地址和类型
+---
 
-## 配置
+## 📦 安装
 
-在 AstrBot WebUI 的插件配置页面中，设置以下参数：
+<details open>
+<summary><b>方式一：WebUI 安装（推荐）</b></summary>
 
-### MetingAPI 配置
+1. 打开 AstrBot WebUI → **插件市场**
+2. 搜索 `meting`
+3. 找到本插件并安装
+4. 启用插件并配置
 
-**API 地址**
-- **描述**：选择预设的 MetingAPI 或自定义
-- **可选值**：
-  - `https://musicapi.chuyel.top/meting/` - 初叶🍂竹叶 Furry API（带QQ音乐/网易云会员）
-  - `https://metingapi.nanorocky.top/` - 呆呆酪灰的 MetingAPI
-  - `custom` - 自定义 API
-- **默认**：`https://musicapi.chuyel.top/meting/`
+</details>
 
-**API 类型**（仅在 API 地址为 custom 时生效）
-- **描述**：选择 MetingAPI 的类型
-- **可选值**：
-  - `1` - Node API（默认）：标准 MetingAPI
-  - `2` - PHP API：使用 `keyword` 参数传递搜索词
-  - `3` - 自定义参数：使用占位符构建请求
-- **默认**：`1`
+<details>
+<summary><b>方式二：WebUI 手动安装</b></summary>
 
-**自定义 API 地址**（仅在 API 地址为 custom 时生效）
-- **描述**：自定义 MetingAPI 地址
-- **示例**：`https://api.example.com/meting`
+1. 打开 AstrBot WebUI → **插件管理**
+2. 点击 **从链接安装**
+3. 输入：`https://github.com/chuyegzs/astrbot_plugin_meting/`
+4. 启用插件并配置
 
-**自定义 API 模板**（仅在 API 类型为 3 时生效）
-- **描述**：自定义请求模板，必须包含 `:server`、`:type`、`:id`、`:r` 占位符
-- **示例**：`server=:server&type=:type&id=:id&r=:r`
+</details>
 
-### 其他配置
+<details>
+<summary><b>方式三：手动安装</b></summary>
 
-**默认音源**
-- **描述**：默认使用的音乐平台
-- **可选值**：`tencent`（QQ音乐）、`netease`（网易云）、`kugou`（酷狗）、`kuwo`（酷我）
-- **默认**：`netease`
+```bash
+# 进入插件目录
+cd AstrBot/data/plugins
 
-**使用音乐卡片**
-- **描述**：是否使用音乐卡片显示搜索结果
-- **默认**：`false`
+# 克隆仓库
+git clone https://github.com/chuyegzs/astrbot_plugin_meting.git
 
-**音乐卡片签名地址**
-- **描述**：用于获取音乐卡片签名的 API 地址
-- **默认**：`https://oiapi.net/api/QQMusicJSONArk/`
-
-**搜索结果显示数量**
-- **描述**：搜索结果显示的歌曲数量
-- **范围**：5-30
-- **默认**：10
-
-## 使用方法
-
-### 查看帮助
-
-发送以下任一指令查看所有可用命令：
-```
-点歌指令
-```
-
-### 切换音源
-
-在当前会话中切换音乐平台，不影响其他会话：
-
-- `切换QQ音乐`  - 切换到QQ音乐
-- `切换网易云`  - 切换到网易云
-- `切换酷狗`  - 切换到酷狗
-- `切换酷我`  - 切换到酷我
-
-### 搜索歌曲
-
-使用当前会话的音源搜索歌曲：
-
-```
-搜歌 一期一会
+# 安装依赖
+cd astrbot_plugin_meting
+pip install -r requirements.txt
 ```
 
-搜索后会显示歌曲列表，包含歌曲名和歌手信息。
+然后在 WebUI 插件管理页面启用即可。
 
-### 播放歌曲
+</details>
 
-#### 方式一：通过序号播放
-在搜索结果后，使用以下命令播放指定序号的歌曲：
+> 💡 插件依赖 `aiohttp`、`pydub`、`imageio-ffmpeg`、`packaging`，WebUI 安装时会自动处理。
+
+---
+
+## 🎮 使用方法
+
+### 📋 指令速查表
+
+| 指令 | 别名 | 说明 |
+|------|------|------|
+| `点歌指令` | `点歌帮助` `song help` | 查看所有指令 |
+| `搜歌 <歌名>` | `search` | 在当前音源搜索歌曲 |
+| `点歌 <序号>` | `play` | 播放搜索结果中的歌曲 |
+| `点歌 <歌名>` | `play` | 直接搜索并播放第一首 |
+| `网易点歌 <歌名>` | `netease play` | 网易云快捷点歌 |
+| `QQ点歌 <歌名>` | `tencent play` `qq play` | QQ 音乐快捷点歌 |
+| `酷狗点歌 <歌名>` | `kugou play` | 酷狗快捷点歌 |
+| `酷我点歌 <歌名>` | `kuwo play` | 酷我快捷点歌 |
+| `切换网易云` | `switch netease` | 切换默认音源为网易云 |
+| `切换QQ音乐` | `switch tencent` | 切换默认音源为 QQ 音乐 |
+| `切换酷狗` | `switch kugou` | 切换默认音源为酷狗 |
+| `切换酷我` | `switch kuwo` | 切换默认音源为酷我 |
+
+### 🔍 搜索歌曲
+
+使用当前会话设置的音源搜索：
+
+```
+搜歌 坠落星空
+```
+
+搜索结果示例：
+
+```
+🎵 搜索结果 (网易云音乐)
+━━━━━━━━━━━━━━
+[1] 坠落星空  👤 小星星Aurora  💿 画一个星星一个你
+[2] 坠落星空  👤 peony  💿 小星星Aurora 刀小刀 李响/钱润玉- 坠落星空
+[3] 坠落星空(合唱版)  👤 跪四人  💿 坠落星空（合唱版）
+[4] 溯x大雾x坠落星空  👤 观药  💿 溯x大雾x坠落星空
+[5] 坠落星空  👤 李响/钱润玉  💿 坠落星空
+[6] 坠落星空 (Live)  👤 小星星Aurora  💿 万魔原创音乐节
+[7] 坠落星空(钢琴版)  👤 Ben George  💿 流行钢琴
+[8] 坠落星空  👤 栗莓Giovanna  💿 四暖未歇
+[9] 坠落星空(合声版)  👤 也许  💿 坠落星空
+[10] 坠落星空（男声版）  👤 六月狐狸  💿 六月繁星，七月流火
+━━━━━━━━━━━━━━
+💡 提示：发送 "点歌 1" 即可播放第一首歌
+```
+
+### ▶️ 播放歌曲
+
+**通过序号播放**（需先搜歌）：
 
 ```
 点歌 1
 ```
 
-其中 `1` 是歌曲序号（如：点歌 1、点歌 2、点歌 3...）。
-
-**注意**：`点歌` 和数字之间必须有空格。
-
-#### 方式二：直接点歌（快捷指令）
-直接指定音源搜索并播放第一首歌曲：
+**直接点歌**（自动搜第一首）：
 
 ```
-网易点歌 一期一会
-腾讯点歌 晴天
-QQ点歌 稻香
-酷狗点歌 演员
-酷我点歌 告白气球
+点歌 坠落星空
+网易点歌 坠落星空
+QQ点歌 坠落星空
 ```
 
-这些快捷指令会忽略当前会话的音源设置，直接在指定平台搜索。
+### 🔄 切换音源
 
-### 音乐卡片
+音源设置**按会话隔离**，切换后不影响其他群聊/私聊：
 
-如果启用了音乐卡片功能（`use_music_card: true`），搜索结果将以精美的卡片形式展示，包含：
-- 歌曲封面
-- 歌曲名称和歌手
-- 点击跳转链接
-
-## 依赖
-
-插件需要以下依赖库（会在安装插件时自动安装）：
-
-- `aiohttp>=3.8.0` - 异步 HTTP 请求
-- `pydub>=0.25.1` - 音频处理
-- `packaging` - 版本解析
-
-**注意**：`pydub` 需要系统安装 FFmpeg。请确保系统已安装 FFmpeg 并在 PATH 中。
-
-### FFmpeg 安装
-
-**Windows:**
-```bash
-# 使用 winget
-winget install ffmpeg
-
-# 或手动下载：https://ffmpeg.org/download.html
+```
+切换网易云
+切换QQ音乐
+切换酷狗
+切换酷我
 ```
 
-**Linux (Ubuntu/Debian):**
-```bash
-sudo apt-get update
-sudo apt-get install ffmpeg
-```
+### 🎨 音乐卡片
 
-**macOS:**
-```bash
-brew install ffmpeg
-```
+当 `send_as_music` 设为 `0`（默认）时，点歌会以精美卡片形式展示：
 
-## 技术说明
+- 包含歌曲封面、歌名、歌手
+- 点击可跳转到对应平台播放
+- 非 QQ 平台自动降级为文件/语音发送
+
+### 🤖 LLM 调用
+
+插件暴露了 `astr_meting_music` Function Tool，AI 模型可直接调用：
+
+- **搜索**：传入 `keyword` + `source`（`index=-1`），返回歌曲列表 JSON
+- **播放**：传入 `keyword` + `source` + `index`，自动发送音乐卡片
+
+---
+
+## ⚙️ 配置说明
+
+### API 配置
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `api_url` | 下拉选择 | `https://musicapi.chuyel.top/meting/` | 预设 API 或选择 `custom` |
+| `api_type` | 整数 | `1` | 仅自定义时生效：1=Node API, 2=PHP API, 3=自定义参数 |
+| `custom_api_url` | 字符串 | — | 自定义 API 基础地址 |
+| `custom_api_template` | 字符串 | — | 自定义参数模板（需含 `:server` `:type` `:id` `:r`） |
+
+<details>
+<summary><b>API 类型详解</b></summary>
+
+| 类型 | 请求格式 |
+|------|----------|
+| **Node API** | `{api_url}/api?server={server}&type={type}&id={id}` |
+| **PHP API** | `{api_url}?server={server}&type=search&id=0&keyword={kw}&dwrc=false` |
+| **自定义参数** | 完全自定义，支持 `:server` `:type` `:id` `:r` 占位符 |
+
+</details>
+
+### 搜索配置
+
+| 配置项 | 类型 | 默认值 | 范围 | 说明 |
+|--------|------|--------|------|------|
+| `default_source` | 字符串 | `netease` | — | 默认音源 |
+| `search_result_count` | 整数 | `10` | 5~30 | 搜索结果数量 |
+| `search_result_expiration_time` | 整数 | `120` | 30~300s | 结果过期时间 |
+| `search_results_withdrawn_after_timeout` | 整数 | `60` | -1~300s | 超时自动撤回；`0`=点歌后立即撤回；`-1`=不撤回 |
+| `search_result_restrictions` | 布尔 | `false` | — | 搜索结果仅对搜索者本人有效 |
+
+### 音乐发送配置
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `send_as_music` | 整数 | `0` | `0`=音乐卡片，`1`=语音切片，`2`=文件发送 |
+| `send_if_not_supported` | 整数 | `2` | 非 QQ 平台备选发送方式 |
+
+### 音乐卡片配置
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `api_sign_url` | 字符串 | `https://oiapi.net/api/QQMusicJSONArk/` | 音乐卡片签名 API |
+
+### 下载与缓存配置
+
+| 配置项 | 类型 | 默认值 | 范围 | 说明 |
+|--------|------|--------|------|------|
+| `max_file_size` | 整数 | `80` | 10~200 MB | 最大下载文件大小 |
+| `enable_cache` | 布尔 | `false` | — | 启用缓存可减少带宽 |
+| `max_cache_size` | 整数 | `1` | 1~32 GB | 最大缓存占用 |
+| `daily_cleanup_time` | 字符串 | `04:30` | HH:MM | 每日定时清理时间 |
+
+### 语音分段配置
+
+| 配置项 | 类型 | 默认值 | 范围 | 说明 |
+|--------|------|--------|------|------|
+| `segment_duration` | 整数 | `120` | 30~300s | 每条语音最大时长 |
+| `send_interval` | 浮点 | `1.0` | 0~10s | 片段发送间隔 |
+
+---
+
+## 🔧 技术说明
 
 ### 音源映射
 
-| 用户输入 | API 参数 |
-|---------|---------|
-| QQ音乐 | tencent |
-| 网易云 | netease |
-| 酷狗 | kugou |
-| 酷我 | kuwo |
-
-### API 类型说明
-
-**1. Node API（默认）**
-- 标准 MetingAPI 格式
-- 请求地址：`{api_url}/api?server={server}&type={type}&id={id}`
-
-**2. PHP API**
-- PHP 版本 MetingAPI
-- 请求地址：`{api_url}?server={server}&type=search&id=0&keyword={keyword}&dwrc=false`
-
-**3. 自定义参数**
-- 完全自定义请求格式
-- 支持占位符：`:server`、`:type`、`:id`、`:r`
+| 用户指令 | API 参数 |
+|----------|----------|
+| QQ 音乐 | `tencent` |
+| 网易云 | `netease` |
+| 酷狗 | `kugou` |
+| 酷我 | `kuwo` |
 
 ### 语音分段机制
 
-QQ 语音时长上限为2分钟，插件会自动将长歌曲分割为多个片段：
-- 每段时长：可配置（默认120秒）
-- 格式：WAV
-- 发送方式：逐段发送
+```
+┌──────────┐    ┌──────────┐    ┌──────────┐
+│ 原音频    │ → │ 转码 WAV  │ →  │ 分段发送  │
+│ (任意格式)│   │ 24kHz单声道│   │ 每段 ≤120s│
+└──────────┘    └──────────┘    └──────────┘
+```
+
+- 超过分段时长的歌曲自动切割
+- 末尾剩余 ≤7s 时合并到最后一段，避免碎片
+- 发送完毕后自动清理临时文件
 
 ### 数据存储
 
-- 会话音源设置存储在内存中，重启后恢复为默认音源
-- 搜索结果临时存储在内存中，仅用于当前会话
-- 下载的音频文件存储在系统临时目录，播放完成后自动删除
+| 数据 | 存储位置 | 生命周期 |
+|------|----------|----------|
+| 会话音源 | 内存 | 重启重置 |
+| 搜索结果 | 内存 | 过期自动清除 |
+| 下载音频 | 系统临时目录 | 播放后自动删除 |
+| 缓存文件 | `%TEMP%/astrbot_meting_cache/` | 每日定时清理 |
 
-## 常见问题
+---
 
-### Q: 提示"请先在插件配置中设置 MetingAPI 地址"
-A: 请在 AstrBot WebUI 的插件配置页面中选择或填写正确的 MetingAPI 地址。
+## ❓ 常见问题
 
-### Q: 音乐卡片无法显示
-A: 请检查：
-1. `use_music_card` 是否设置为 `true`
-2. `api_sign_url` 是否配置正确
-3. 签名服务是否可用
+<details>
+<summary><b>Q: 提示"请先在插件配置中设置 MetingAPI 地址"</b></summary>
 
-### Q: 搜索歌曲时提示"网络错误"
-A: 请检查：
-1. MetingAPI 地址是否正确
-2. API 类型是否匹配
-3. 网络连接是否正常
+请在 AstrBot WebUI 的插件配置页面中选择或填写正确的 API 地址。
 
-### Q: 播放歌曲时提示"缺少 pydub 依赖"
-A: 请确保已安装 FFmpeg，并重新安装插件依赖。
+</details>
 
-## 开发
+<details>
+<summary><b>Q: 音乐卡片无法显示</b></summary>
 
-### 项目结构
+1. 确认 AstrBot 版本 ≥ `4.17.6`
+2. 检查 `api_sign_url` 签名服务是否可用
+3. 查看 DEBUG 日志中的兼容性检查结果
+
+</details>
+
+<details>
+<summary><b>Q: 搜索歌曲提示"网络错误"</b></summary>
+
+1. 检查 API 地址是否正确
+2. 确认 API 类型选择是否匹配
+3. 测试 API 是否可公网访问
+
+</details>
+
+<details>
+<summary><b>Q: 播放歌曲提示缺少 pydub 依赖</b></summary>
+
+请确保已安装 FFmpeg，并重新安装插件依赖：
+```bash
+pip install -r requirements.txt
+```
+
+</details>
+
+<details>
+<summary><b>Q: 非 QQ 平台如何发送音乐？</b></summary>
+
+插件会自动检测消息平台，非 QQ 平台将按 `send_if_not_supported` 配置降级为文件或语音发送。
+
+</details>
+
+---
+
+## 📂 项目结构
 
 ```
 astrbot_plugin_meting/
-├── main.py              # 插件主代码
-├── metadata.yaml        # 插件元数据
-├── _conf_schema.json    # 配置文件 Schema
-├── requirements.txt     # Python 依赖
-├── README.md           # 说明文档
-├── LICENSE             # 许可证
-└── .gitignore         # Git 忽略文件
+├── main.py              # 🔌 插件主代码
+├── metadata.yaml        # 📋 插件元数据
+├── _conf_schema.json    # ⚙️ 配置文件 Schema
+├── requirements.txt     # 📦 Python 依赖
+├── README.md            # 📖 说明文档
+├── CHANGELOG.md         # 📝 更新日志
+├── LICENSE              # 📜 许可证
+└── .gitignore           # 🙈 Git 忽略文件
 ```
 
-### 贡献
+---
 
-欢迎提交 Issue 和 Pull Request！
+## 🙏 致谢
 
-## 许可证
+|      |      |
+|------|------|
+| [初叶🍂 MetingAPI](https://github.com/chuyegzs/Meting-UI-API) | 二次开发的 MetingAPI 服务 |
+| [MetingAPI](https://github.com/metowolf/Meting) | 原始音乐 API 服务 |
+| [AstrBot](https://github.com/AstrBotDevs/AstrBot) | 多平台 LLM 聊天机器人框架 |
+| [OIAPI](https://oiapi.net/) | 音乐卡片签名接口 |
+| [NanoRocky](https://github.com/NanoRocky) | 功能添加与代码优化贡献者 |
 
-MIT License
+---
 
-## 致谢
+## 📜 许可证
 
-- [初叶🍂MetingAPI](https://github.com/chuyegzs/Meting-UI-API) - 初叶🍂二次开发的MetingAPI
-- [MetingAPI](https://github.com/metowolf/Meting) - 音乐 API 服务
-- [AstrBot](https://github.com/AstrBotDevs/AstrBot) - AstrBot机器人框架
-- [NanoRocky](https://github.com/NanoRocky) - 功能添加与代码优化，部分功能的贡献者
+本项目基于 [MIT License](LICENSE) 开源。
 
-## 支持
+<br>
 
-如有问题或建议，欢迎加入 初叶🍂Furry 插件反馈QQ群：535563643（必点Star）
+<p align="center">
+  <sub>如有问题或建议，欢迎加入反馈 QQ 群：<b>535563643</b>（必点 ⭐Star）</sub>
+</p>
+

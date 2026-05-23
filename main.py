@@ -8,14 +8,12 @@ import shutil
 import tempfile
 import time
 import uuid
+import aiohttp
+import imageio_ffmpeg as ffmpeg
 from collections.abc import Callable
 from typing import Any, TypeVar
 from urllib.parse import parse_qs, quote, urlparse
-
-import aiohttp
-import imageio_ffmpeg as ffmpeg
 from packaging.version import parse as parse_version
-
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.message_components import File, Json, Record
@@ -48,7 +46,6 @@ TEMP_FILE_PREFIX = "astrbot_meting_plugin_"
 FFMPEG_INFO_TIMEOUT = 30  # seconds, for -i probe only
 FFMPEG_CONVERT_TIMEOUT = 120  # seconds, for format conversion / segmentation
 
-# Regex to replace only the URL scheme, avoiding accidental mid-string replacement.
 _HTTPS_SCHEME_RE = re.compile(r"^http://", re.IGNORECASE)
 
 
