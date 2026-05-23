@@ -595,14 +595,27 @@ class MetingPlugin(Star):
             logger.error(f"清理临时文件时发生错误: {e}")
 
     def _clear_all_cache(self):
-        """清空所有音乐文件缓存"""
+        """清理过期的音乐文件缓存"""
         try:
             cache_dir = os.path.join(tempfile.gettempdir(), "astrbot_meting_cache")
-            if os.path.exists(cache_dir):
-                shutil.rmtree(cache_dir)
-                logger.info("已清空音乐文件缓存")
+            if not os.path.exists(cache_dir):
+                return
+            count = 0
+            current_time = time.time()
+            for filename in os.listdir(cache_dir):
+                filepath = os.path.join(cache_dir, filename)
+                if os.path.isfile(filepath):
+                    try:
+                        # 忽略一小时内的文件，避免冲突
+                        if current_time - os.path.getmtime(filepath) > 3600:
+                            os.remove(filepath)
+                            count += 1
+                    except Exception:
+                        pass
+            if count > 0:
+                logger.info(f"已清理 {count} 个过期的音乐缓存文件")
         except Exception as e:
-            logger.error(f"清空音乐文件缓存时发生错误: {e}")
+            logger.error(f"清理音乐文件缓存时发生错误: {e}")
 
     async def _enforce_cache_size(self, cache_dir: str):
         """检查并清理超出预设大小的缓存"""
@@ -903,6 +916,7 @@ class MetingPlugin(Star):
                         ) as c_resp:
                             if c_resp.status in (301, 302):
                                 cover = c_resp.headers.get("Location", cover)
+                            await c_resp.read()  # 确保连接被正确释放
                 except Exception as e:
                     logger.warning(f"解析封面跳转失败: {e}")
 
@@ -1611,7 +1625,12 @@ class MetingPlugin(Star):
 
                     async with http_session.get(url, allow_redirects=True) as resp:
                         if resp.status != 200:
-                            raise DownloadError(f"下载失败，状态码: {resp.status}")
+                            if resp.status >= 500:
+                                raise aiohttp.ClientError(
+                                    f"上游服务器错误，状态码: {resp.status}"
+                                )
+                            else:
+                                raise DownloadError(f"下载失败，状态码: {resp.status}")
 
                         content_type = resp.headers.get("Content-Type", "")
                         if not self._is_audio_content(content_type):
@@ -1640,7 +1659,8 @@ class MetingPlugin(Star):
                                             f"文件过大，已超过 {max_file_size_mb} MB"
                                         )
                             except aiohttp.ClientPayloadError as e:
-                                raise DownloadError(f"连接中断: {e}") from e
+                                logger.warning(f"下载时连接断开: {e}")
+                                raise e
 
                         file_size_bytes = os.path.getsize(temp_file)
                         if file_size_bytes == 0:
