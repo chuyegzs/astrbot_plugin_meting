@@ -173,12 +173,6 @@
     "type": "object",
     "hint": "歌曲文件发送相关设置",
     "items": {
-      "file_send_compress": {
-        "description": "开启文件压缩",
-        "type": "bool",
-        "hint": "开启压缩后将转为 MP3 并压缩后发送",
-        "default": false
-      }
     }
   }
 }

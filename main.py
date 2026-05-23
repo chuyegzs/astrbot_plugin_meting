@@ -994,7 +994,7 @@ class MetingPlugin(Star):
             # 普通语音发送模式
             try:
                 temp_file, duration = await self._download_song(
-                    song_url, event.get_sender_id(), source, song_id
+                    _force_https(song_url), event.get_sender_id(), source, song_id
                 )
 
                 yield event.plain_result("正在分段录制歌曲...")
@@ -1017,105 +1017,52 @@ class MetingPlugin(Star):
                 yield event.plain_result("播放失败，请稍后重试")
 
         elif send_val == 2:
-            # 文件发送模式
+            # 文件发送模式 - 直接透传 URL
             try:
-                temp_file, _duration = await self._download_song(
-                    song_url, event.get_sender_id(), source, song_id
-                )
                 async for result in self._send_as_file(
-                    event, temp_file, title, artist, album
+                    event, title, artist, album, song_url=_force_https(song_url)
                 ):
                     yield result
             except Exception as e:
                 logger.error(f"文件发送失败: {e}", exc_info=True)
                 yield event.plain_result("文件发送失败，请稍后重试")
 
+    async def _probe_song_meta(self, song_url: str) -> str:
+        """发送 HEAD 请求以跟踪重定向并提取文件扩展名。
+        使用现有的 _guess_file_extension 逻辑来猜测最终 URL 和请求头。
+        不下载文件主体。出错时回退到 URL 路径解析。
+        """
+        try:
+            url = _force_https(song_url)
+            if not self._http_session:
+                raise MetingPluginError("HEAD探针失败: HTTP 会话未初始化。")
+            async with self._http_session.head(url, allow_redirects=True) as resp:
+                final_url = str(resp.url)
+                ext = self._guess_file_extension(final_url, resp.headers)
+                return ext if ext else ".mp3"
+        except Exception as e:
+            logger.warning(f"HEAD probe failed for {song_url}: {e}")
+            parsed = urlparse(song_url).path
+            ext = os.path.splitext(parsed)[1].lower()
+            return ext if ext else ".mp3"
+
     async def _send_as_file(
         self,
         event: AstrMessageEvent,
-        temp_file: str,
         title: str,
         artist: str,
         album: str,
+        song_url: str = "",
     ):
-        """以文件方式发送歌曲（音频已验证有效且已缓存）"""
-        # 判断是否压缩并决定文件名
-        file_send_compress = self._get_group_config(
-            "music_file_send_config",
-            "file_send_compress",
-            False,
-            lambda x: isinstance(x, bool),
-        )
-
+        """以文件方式发送歌曲"""
         name = f"{title} - {artist}"
         if album and album != "未知专辑":
             name = f"{name} - [{album}]"
 
         name = "".join(c for c in name if c not in r'\/:*?"<>|')
-
-        if not file_send_compress:
-            ext = os.path.splitext(temp_file)[1]
-            if not ext:
-                ext = ".mp3"
-            file_name = f"{name}{ext}"
-            yield event.chain_result([File(file=temp_file, name=file_name)])
-        else:
-            # 开启压缩转 MP3
-            temp_mp3 = os.path.join(
-                tempfile.gettempdir(), f"{TEMP_FILE_PREFIX}{uuid.uuid4().hex}.mp3"
-            )
-            process = await asyncio.create_subprocess_exec(
-                self._ffmpeg_path,
-                "-y",
-                "-i",
-                temp_file,
-                "-map",
-                "0:a",
-                "-c:a",
-                "libmp3lame",
-                "-b:a",
-                "128k",
-                temp_mp3,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            try:
-                stderr = await self._run_ffmpeg(process, FFMPEG_CONVERT_TIMEOUT)
-            except asyncio.TimeoutError:
-                logger.error("文件压缩转 MP3 超时")
-                if temp_file and os.path.exists(temp_file):
-                    try:
-                        os.remove(temp_file)
-                    except Exception:
-                        pass
-                yield event.plain_result("文件压缩发送超时")
-                return
-            if process.returncode != 0 or not os.path.exists(temp_mp3):
-                logger.error(
-                    f"文件压缩转 MP3 失败: {stderr.decode('utf-8', errors='ignore')}"
-                )
-                if temp_file and os.path.exists(temp_file):
-                    try:
-                        os.remove(temp_file)
-                        logger.debug(f"已清理损坏媒体文件: {temp_file}")
-                    except Exception:
-                        pass
-                yield event.plain_result("文件压缩发送失败")
-                return
-
-            yield event.chain_result([File(file=temp_mp3, name=f"{name}.mp3")])
-
-            # 延迟清理压缩产生的文件
-            async def _delayed_cleanup(filepath: str, delay: int = 180):
-                await asyncio.sleep(delay)
-                try:
-                    if os.path.exists(filepath):
-                        os.remove(filepath)
-                        logger.debug(f"延迟清理发送完毕的临时文件: {filepath}")
-                except Exception:
-                    pass
-
-            asyncio.create_task(_delayed_cleanup(temp_mp3))
+        ext = await self._probe_song_meta(song_url)
+        file_name = f"{name}{ext}"
+        yield event.chain_result([File(name=file_name, url=song_url)])
 
     async def _switch_source(
         self, event: AstrMessageEvent, source: str, source_name: str
