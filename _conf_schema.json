@@ -11,6 +11,8 @@
         "options": [
           "https://musicapi.chuyel.top/meting/",
           "https://metingapi.nanorocky.top/",
+          "https://meting.mikus.ink/",
+          "https://metingapi.mo-app.cn/",
           "custom"
         ],
         "default": "https://musicapi.chuyel.top/meting/"
@@ -44,6 +46,12 @@
         "description": "默认音源",
         "type": "string",
         "hint": "可选: tencent (QQ音乐)、netease (网易云)、kugou (酷狗)、kuwo (酷我), 具体可用音源取决于所选 API 的支持情况",
+        "options": [
+          "netease",
+          "tencent",
+          "kugou",
+          "kuwo"
+        ],
         "default": "netease"
       },
       "search_result_expiration_time": {
@@ -71,9 +79,9 @@
       "search_result_count": {
         "description": "搜索结果显示数量",
         "type": "int",
-        "hint": "搜索结果显示的歌曲数量, 范围: 5-30",
-        "default": 10,
-        "minimum": 5,
+        "hint": "搜索结果显示的歌曲数量, 范围: 3-30",
+        "default": 9,
+        "minimum": 3,
         "maximum": 30
       }
     }

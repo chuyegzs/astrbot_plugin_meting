@@ -123,10 +123,11 @@ pip install -r requirements.txt
 | `QQ点歌 <歌名>` | `tencent play` `qq play` | QQ 音乐快捷点歌 |
 | `酷狗点歌 <歌名>` | `kugou play` | 酷狗快捷点歌 |
 | `酷我点歌 <歌名>` | `kuwo play` | 酷我快捷点歌 |
-| `切换网易云` | `switch netease` | 切换默认音源为网易云 |
-| `切换QQ音乐` | `switch tencent` | 切换默认音源为 QQ 音乐 |
-| `切换酷狗` | `switch kugou` | 切换默认音源为酷狗 |
-| `切换酷我` | `switch kuwo` | 切换默认音源为酷我 |
+| `切换网易云` | `switch netease` | 切换会话默认音源为网易云 |
+| `切换QQ音乐` | `switch tencent` | 切换会话默认音源为 QQ 音乐 |
+| `切换酷狗` | `switch kugou` | 切换会话默认音源为酷狗 |
+| `切换酷我` | `switch kuwo` | 切换会话默认音源为酷我 |
+| `切换发送模式 <mode>` | `switch meting mode` | 切换会话的发送模式 |
 
 ### 🔍 搜索歌曲
 
@@ -182,9 +183,22 @@ QQ点歌 坠落星空
 切换酷我
 ```
 
+### 🔄 切换模式
+
+音乐发送模式设置**按会话隔离**，切换后不影响其他群聊/私聊：<br><br>
+【仅管理员可使用】
+
+```
+切换发送模式 卡片
+切换发送模式 语音
+切换发送模式 文件
+切换发送模式 默认
+```
+
 ### 🎨 音乐卡片
 
-当 `send_as_music` 设为 `0`（默认）时，点歌会以精美卡片形式展示：
+当 `send_as_music` 设为 `0`（默认）时，点歌会以精美卡片形式展示：<br><br>
+【音乐卡片只支持 QQ 平台】
 
 - 包含歌曲封面、歌名、歌手
 - 点击可跳转到对应平台播放
@@ -226,7 +240,7 @@ QQ点歌 坠落星空
 | 配置项 | 类型 | 默认值 | 范围 | 说明 |
 |--------|------|--------|------|------|
 | `default_source` | 字符串 | `netease` | — | 默认音源 |
-| `search_result_count` | 整数 | `10` | 5~30 | 搜索结果数量 |
+| `search_result_count` | 整数 | `9` | 3~30 | 搜索结果数量 |
 | `search_result_expiration_time` | 整数 | `120` | 30~300s | 结果过期时间 |
 | `search_results_withdrawn_after_timeout` | 整数 | `60` | -1~300s | 超时自动撤回；`0`=点歌后立即撤回；`-1`=不撤回 |
 | `search_result_restrictions` | 布尔 | `false` | — | 搜索结果仅对搜索者本人有效 |

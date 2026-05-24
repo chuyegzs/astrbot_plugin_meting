@@ -27,7 +27,6 @@ SOURCE_DISPLAY = {
     "kugou": "酷狗音乐",
     "kuwo": "酷我音乐",
 }
-
 REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=120)
 CHUNK_SIZE = 8192
 MAX_SESSION_AGE = 3600
@@ -45,8 +44,12 @@ AUDIO_CONTENT_TYPES = {
 TEMP_FILE_PREFIX = "astrbot_meting_plugin_"
 FFMPEG_INFO_TIMEOUT = 30  # seconds, for -i probe only
 FFMPEG_CONVERT_TIMEOUT = 120  # seconds, for format conversion / segmentation
-
 _HTTPS_SCHEME_RE = re.compile(r"^http://", re.IGNORECASE)
+PHP_API_SUPPORTED_URLS = {
+    "https://metingapi.nanorocky.top/",
+    "https://api.injahow.cn/meting/",
+    "https://metingapi.mo-app.cn/",
+}
 
 
 def _force_https(url: str) -> str:
@@ -120,6 +123,7 @@ class MetingPlugin(Star):
         super().__init__(context)
         self.config = config
         self._sessions: dict[str, SessionData] = {}
+        self._send_overrides: dict[str, int] = {}
         self._sessions_lock: asyncio.Lock | None = None
         self._http_session: aiohttp.ClientSession | None = None
         self._ffmpeg_path = ffmpeg.get_ffmpeg_exe()
@@ -280,7 +284,7 @@ class MetingPlugin(Star):
                     return 1
             return api_type
 
-        if api_url == "https://metingapi.nanorocky.top/":
+        if api_url in PHP_API_SUPPORTED_URLS:
             return 2
         return 1
 
@@ -316,12 +320,17 @@ class MetingPlugin(Star):
         url = _force_https(url)
         return url if url.endswith("/") else f"{url}/"
 
-    def get_send_as_music(self) -> int:
+    def get_send_as_music(self, event: AstrMessageEvent | None = None) -> int:
         """获取音乐发送方式
 
         Returns:
             int: 0=卡片, 1=语音切片, 2=文件发送
         """
+        if event and hasattr(self, "_send_overrides"):
+            uid = event.unified_msg_origin
+            if uid in self._send_overrides:
+                return self._send_overrides[uid]
+
         return self._get_group_config(
             "music_send_config",
             "send_as_music",
@@ -838,7 +847,7 @@ class MetingPlugin(Star):
             yield event.plain_result("获取歌曲播放地址失败")
             return
 
-        send_val = self.get_send_as_music()
+        send_val = self.get_send_as_music(event)
         if force_card:
             send_val = 0
 
@@ -1069,6 +1078,53 @@ class MetingPlugin(Star):
         session_id = event.unified_msg_origin
         await self._set_session_source(session_id, source)
         yield event.plain_result(f"已切换音源为{source_name}")
+
+    @filter.command("切换发送模式", alias={"switch meting mode"})
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    async def switch_send_mode(self, event: AstrMessageEvent, mode: str = ""):
+        """临时切换当前会话的发送方式 [卡片/语音/文件/默认]"""
+        if not mode:
+            # Check arguments
+            message_str = event.get_message_str().strip()
+            # Try to extract the parameter if mode is empty but string has it
+            for prefix in ["切换发送模式", "切换点歌模式", "switch meting mode"]:
+                if message_str.startswith(prefix):
+                    mode = message_str[len(prefix) :].strip()
+                    break
+
+        if not mode:
+            yield event.plain_result(
+                "请指定模式：卡片(0)、语音(1)、文件(2) 或 默认(恢复)\n"
+                "示例：/切换发送模式 语音"
+            )
+            return
+
+        mode_map = {
+            "卡片": 0,
+            "0": 0,
+            "语音": 1,
+            "1": 1,
+            "文件": 2,
+            "2": 2,
+        }
+
+        if mode in ("默认", "恢复", "default", "-1"):
+            uid = event.unified_msg_origin
+            if uid in self._send_overrides:
+                del self._send_overrides[uid]
+            yield event.plain_result("已恢复当前会话的音乐发送模式为全局默认配置。")
+            return
+
+        if mode in mode_map:
+            val = mode_map[mode]
+            uid = event.unified_msg_origin
+            self._send_overrides[uid] = val
+            mode_name = {0: "卡片", 1: "语音切片", 2: "文件发送"}[val]
+            yield event.plain_result(
+                f"已临时将当前会话的音乐发送模式切换为：{mode_name}。"
+            )
+        else:
+            yield event.plain_result("未知的模式！支持的模式：卡片、语音、文件、默认。")
 
     @filter.command(
         "切换QQ音乐",
