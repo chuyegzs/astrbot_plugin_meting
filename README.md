@@ -387,7 +387,7 @@ astrbot_plugin_meting/
 
 ## 📜 许可证
 
-本项目基于 [MIT License](LICENSE) 开源。
+本项目基于 [AGPL License](LICENSE) 开源。
 
 <br>
 
