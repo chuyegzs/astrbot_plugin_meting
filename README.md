@@ -2,7 +2,7 @@
 # 初叶🍂 MetingAPI 点歌插件
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v1.1.1-blue?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/version-v1.1.2-blue?style=flat-square" alt="Version">
   <img src="https://img.shields.io/badge/AstrBot-≥4.17.6-green?style=flat-square" alt="AstrBot">
   <img src="https://img.shields.io/badge/license-AGPL-orange?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/python-3.10+-steelblue?style=flat-square" alt="Python">
