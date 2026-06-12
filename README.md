@@ -1,5 +1,5 @@
 <!-- omit in toc -->
-# 🍂 初叶 MetingAPI 点歌插件
+# 初叶🍂 MetingAPI 点歌插件
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-v1.1.1-blue?style=flat-square" alt="Version">
