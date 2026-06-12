@@ -62,7 +62,11 @@ def _force_https(url: str) -> str:
 
 def _generate_guid() -> str:
     """生成基于 machine-id 和 MAC 地址的 GUID"""
-    return hashlib.md5(f"{str(machineid.id())}{str(uuid.getnode())}".encode()).hexdigest()
+    try:
+        mid = machineid.id()
+    except:
+        mid = ""
+    return hashlib.md5(f"{str(mid)}{str(uuid.getnode())}".encode()).hexdigest()
 
 
 class MetingPluginError(Exception):
