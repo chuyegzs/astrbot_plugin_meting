@@ -112,7 +112,7 @@ class SessionData:
 T = TypeVar("T")
 
 
-@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.1.1")
+@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.1.2")
 class MetingPlugin(Star):
     """MetingAPI 点歌插件
 
@@ -351,6 +351,15 @@ class MetingPlugin(Star):
             lambda x: isinstance(x, int) and x in [0, 1, 2],
         )
 
+    def get_send_music_info(self) -> int:
+        """获取音质设置 (br)"""
+        return self._get_group_config(
+            "music_send_config",
+            "send_music_info",
+            999,
+            lambda x: isinstance(x, int) and x >= -1 and x <= 2147483,
+        )
+
     def _build_api_url_for_custom(
         self, api_url: str, template: str, server: str, req_type: str, id_val: str
     ) -> str:
@@ -573,7 +582,6 @@ class MetingPlugin(Star):
                     await loop.run_in_executor(None, self._clear_all_cache)
                     last_cleanup_date = current_date
 
-                logger.debug("定期清理完成")
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -847,6 +855,11 @@ class MetingPlugin(Star):
             yield event.plain_result("获取歌曲播放地址失败")
             return
 
+        br = self.get_send_music_info()
+        if br > 0 and "type=url" in song_url and "br=" not in song_url:
+            connector = "&" if "?" in song_url else "?"
+            song_url = f"{song_url}{connector}br={br}"
+
         send_val = self.get_send_as_music(event)
         if force_card:
             send_val = 0
@@ -883,6 +896,7 @@ class MetingPlugin(Star):
                 "gocqhttp",
                 "llonebot",
                 "chronocat",
+                "qqofficial"
             ):
                 is_qq = True
 
