@@ -9,17 +9,21 @@ import tempfile
 import time
 import uuid
 import aiohttp
+import machineid
 import imageio_ffmpeg as ffmpeg
 from collections.abc import Callable
 from typing import Any, TypeVar
 from urllib.parse import parse_qs, quote, urlparse
 from packaging.version import parse as parse_version
 from astrbot.api import logger
+from astrbot.core.utils.metrics import Metric
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.message_components import File, Json, Record
 from astrbot.api.star import Context, Star, register
 from astrbot.core.config.default import VERSION
 from astrbot.core.pipeline.respond import stage
+
+PL_VERSION = "1.1.2"
 
 SOURCE_DISPLAY = {
     "tencent": "QQ音乐",
@@ -55,6 +59,10 @@ PHP_API_SUPPORTED_URLS = {
 def _force_https(url: str) -> str:
     """Replace the URL scheme with https, only at the start of the string."""
     return _HTTPS_SCHEME_RE.sub("https://", url, count=1)
+
+def _generate_guid() -> str:
+    """生成基于 machine-id 和 MAC 地址的 GUID"""
+    return hashlib.md5(f"{str(machineid.id())}{str(uuid.getnode())}".encode()).hexdigest()
 
 
 class MetingPluginError(Exception):
@@ -112,7 +120,7 @@ class SessionData:
 T = TypeVar("T")
 
 
-@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", "1.1.2")
+@register("astrbot_plugin_meting", "chuyegzs", "基于 MetingAPI 的点歌插件", PL_VERSION)
 class MetingPlugin(Star):
     """MetingAPI 点歌插件
 
@@ -159,7 +167,9 @@ class MetingPlugin(Star):
                     headers={
                         "Referer": "https://astrbot.app/",
                         "User-Agent": f"AstrBot/{VERSION}",
-                        "UAK": "AstrBot/plugin_meting",
+                        "UAK": "AstrBot/plugin_meting * " + PL_VERSION,
+                        "UUID": Metric.get_installation_id(),
+                        "GUID": _generate_guid(),
                     },
                 )
 
