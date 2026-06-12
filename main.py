@@ -61,12 +61,12 @@ def _force_https(url: str) -> str:
     return _HTTPS_SCHEME_RE.sub("https://", url, count=1)
 
 def _generate_guid() -> str:
-    """生成基于 machine-id 和 MAC 地址的 GUID"""
+    """生成基于 machine-id 和 MAC 和 AstrBot 安装 ID 的 GUID"""
     try:
         mid = machineid.id()
     except:
         mid = ""
-    return hashlib.md5(f"{str(mid)}{str(uuid.getnode())}".encode()).hexdigest()
+    return hashlib.md5(f"{str(mid)}{str(uuid.getnode())}{Metric.get_installation_id()}".encode()).hexdigest()
 
 
 class MetingPluginError(Exception):
@@ -171,9 +171,8 @@ class MetingPlugin(Star):
                     headers={
                         "Referer": "https://astrbot.app/",
                         "User-Agent": f"AstrBot/{VERSION}",
-                        "UAK": "AstrBot/plugin_meting * " + PL_VERSION,
-                        "UUID": Metric.get_installation_id(),
-                        "GUID": _generate_guid(),
+                        "UAK": f"AstrBot/plugin_meting * {PL_VERSION} ",
+                        "UUID": _generate_guid(),
                     },
                 )
 
