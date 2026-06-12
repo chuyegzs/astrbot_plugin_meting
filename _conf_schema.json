@@ -95,13 +95,25 @@
         "description": "音乐发送方式",
         "type": "int",
         "hint": "0: 音乐卡片 [默认], 1: 语音切片, 2: 文件发送, \n[注意: LLM 不遵循此开关, 它强制使用音乐卡片]",
-        "default": 0
+        "default": 0,
+        "minimum": 0,
+        "maximum": 2
       },
       "send_if_not_supported": {
         "description": "平台不支持音乐卡片时的发送方式",
         "type": "int",
         "hint": "[仅在音乐发送方式为 0 时生效]\n当音乐卡片不可用时的备选发送方式,\n 0: 不发送, 1: 语音切片, 2: 文件发送, 默认 2 \n[注意: 它不会检测卡片是否成功，这里指的是当消息来源非 QQ 时的默认发送方式]",
-        "default": 2
+        "default": 2,
+        "minimum": 0,
+        "maximum": 2
+      },
+      "send_music_info": {
+        "description": "音质设置",
+        "type": "int",
+        "hint": "设置音乐的音质, 取决于所选 API 的支持情况。\n默认 999 代表 无损 音质, 当设为 -1 时则不限制音质。\n不同的 API 可能有不同的音质选项，请根据实际情况调整。\n数值越大, 音质越好, 但文件也越大, 下载和发送可能需要更多时间。",
+        "default": 999,
+        "minimum": -1,
+        "maximum": 2147483
       }
     }
   },
