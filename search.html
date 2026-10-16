@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1120, height=1">
+  <style>
+    * { box-sizing: border-box; }
+    body { width: 1120px; margin: 0; padding: 32px; background: #24273a; color: #cad3f5; font: 20px "Noto Sans CJK SC", "Microsoft YaHei", sans-serif; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    h1 { margin: 0; font-size: 32px; }
+    header span, .number { color: #8aadf4; }
+    main { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    article { display: flex; align-items: center; gap: 14px; padding: 20px 16px; border-radius: 12px; background: #1e2030; }
+    .number { width: 26px; flex-shrink: 0; text-align: center; }
+    .cover { width: 96px; height: 96px; flex-shrink: 0; border-radius: 8px; overflow: hidden; background: #363a4f; }
+    .cover img { width: 100%; height: 100%; object-fit: cover; }
+    .info { min-width: 0; }
+    .name { font-size: 23px; font-weight: bold; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+    .artist, .album { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 6px; }
+    .artist { color: #a5adcb; }
+    .album { color: #8087a2; font-size: 17px; }
+    footer { margin-top: 24px; }
+  </style>
+</head>
+<body>
+{% autoescape true %}
+  <header><h1>搜索结果</h1><span>{{ source }} · {{ songs|length }} 首</span></header>
+  <main>
+  {% for song in songs %}
+    <article>
+      <span class="number">{{ loop.index }}</span>
+      <div class="cover">{% if song.cover %}<img src="{{ song.cover }}" alt="" onerror="this.remove()">{% endif %}</div>
+      <div class="info">
+        <div class="name">{{ song.name }}</div>
+        <div class="artist">{{ song.artist }}</div>
+        {% if song.album %}<div class="album">{{ song.album }}</div>{% endif %}
+      </div>
+    </article>
+  {% endfor %}
+  </main>
+  <footer>发送「点歌 序号」选歌，例如「点歌 1」</footer>
+{% endautoescape %}
+</body>
+</html>
