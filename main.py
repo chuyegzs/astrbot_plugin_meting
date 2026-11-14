@@ -864,7 +864,7 @@ class MetingPlugin(Star):
         event: AstrMessageEvent,
         song: dict,
         session_id: str,
-        force_card: bool = False,
+        send_mode: int | None = None,
     ):
         """播放歌曲的通用逻辑"""
         song_url = song.get("url")
@@ -878,9 +878,7 @@ class MetingPlugin(Star):
             connector = "&" if "?" in song_url else "?"
             song_url = f"{song_url}{connector}br={br}"
 
-        send_val = self.get_send_as_music(event)
-        if force_card:
-            send_val = 0
+        send_val = self.get_send_as_music(event) if send_mode is None else send_mode
 
         fallback_val = self.get_send_if_not_supported()
         is_qq = False
@@ -919,7 +917,7 @@ class MetingPlugin(Star):
             ):
                 is_qq = True
 
-        if send_val == 0 and not force_card and not is_qq and fallback_val != 0:
+        if send_val == 0 and not is_qq and fallback_val != 0:
             logger.info(
                 f"消息来源非 QQ ({platform_name})，自动切换为备选发送方式: {fallback_val}"
             )
@@ -1010,7 +1008,7 @@ class MetingPlugin(Star):
                             return
                         except Exception as send_e:
                             logger.error(f"发送音乐卡片异常: {send_e}")
-                            if force_card or fallback_val == 0:
+                            if fallback_val == 0:
                                 await event.send(
                                     event.plain_result(f"发送音乐卡片失败: {send_e}")
                                 )
@@ -1025,7 +1023,7 @@ class MetingPlugin(Star):
                         )
             except Exception as e:
                 logger.error(f"音乐卡片请求或处理异常: {e}")
-                if force_card or fallback_val == 0:
+                if fallback_val == 0:
                     await event.send(event.plain_result("制作卡片时出错"))
                     return
                 logger.info(f"由于制作卡片异常，将切换为备选发送方式: {fallback_val}")
@@ -2053,10 +2051,11 @@ class MetingPlugin(Star):
         keyword: str,
         source: str = "netease",
         index: int = -1,
+        send_mode: str = "default",
     ) -> str:
         """这是一个用于搜索和播放音乐的函数。
         搜索音乐：你可以通过提供 keyword (如歌曲名或歌手) 和 source (点歌源： netease, tencent 默认 netease)，不要提供 index (保留为 -1)或将 index 指定为 -1 来进行搜索。函数将返回由搜索到的结果列表（包含序号、歌名、歌手等）的 JSON 数据给你。
-        播放音乐：你可以通过提供 keyword, source 以及 index (从 0 开始计数的有效序号)。函数将直接通过插件向用户发送音乐卡片。
+        播放音乐：你可以通过提供 keyword, source 以及 index (从 0 开始计数的有效序号)。函数将按配置和当前会话模式发送音乐。用户要求语音时传 send_mode="voice"，要求文件时传 "file"，要求卡片时传 "card"；未指定格式时保留 "default"。
         至于音乐源和点搜索结果内的哪一首歌，你可以自行判断，也可以询问用户喔。
         注意：点歌成功时函数会返回“点歌任务执行成功！”，此时意味着音乐已发送，这时你无需再进行任何回复。
 
@@ -2064,6 +2063,7 @@ class MetingPlugin(Star):
             keyword (string): 搜索关键词（歌手名、歌曲名等）
             source (string): 音乐源，必须是 netease, tencent 之一
             index (number): 歌曲序号。-1 表示仅搜索，0 表示第一首，依次类推
+            send_mode (string): 本次发送格式，default 遵循配置和会话模式，voice 语音切片，file 文件，card 音乐卡片（不支持时遵循降级配置）；不会修改配置。仅播放时生效
         """
         try:
             # LLM 工具调用常把整数序号传成 0.0 / "0" 等，list 下标需要真正的 int
@@ -2075,6 +2075,11 @@ class MetingPlugin(Star):
             if source not in SOURCE_DISPLAY:
                 return f"不支持的点歌源：{source}，请从 netease, tencent 中选择。"
 
+            send_modes = {"default": None, "card": 0, "voice": 1, "file": 2}
+            if index >= 0 and (not isinstance(send_mode, str) or send_mode not in send_modes):
+                return "无效的发送格式，请从 default, card, voice, file 中选择。"
+
+            await self._ensure_initialized()
             results = await self._perform_search(keyword, source)
             if not results:
                 return "未搜索到任何相关歌曲。"
@@ -2115,7 +2120,9 @@ class MetingPlugin(Star):
             target_song["source"] = source
             session_id = event.unified_msg_origin
 
-            await self._play_song_logic(event, target_song, session_id, force_card=True)
+            await self._play_song_logic(
+                event, target_song, session_id, send_mode=send_modes[send_mode]
+            )
 
             return "点歌任务执行成功！"
 

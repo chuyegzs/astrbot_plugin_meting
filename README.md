@@ -209,7 +209,9 @@ QQ点歌 坠落星空
 插件暴露了 `astr_meting_music` Function Tool，AI 模型可直接调用：
 
 - **搜索**：传入 `keyword` + `source`（`index=-1`），返回歌曲列表 JSON
-- **播放**：传入 `keyword` + `source` + `index`，自动发送音乐卡片
+- **播放**：传入 `keyword` + `source` + `index`，默认遵循 `send_as_music` 配置及当前会话发送模式
+- **单次格式**：可选参数 `send_mode`：`default`（默认，遵循配置）、`voice`（语音切片）、`file`（文件）、`card`（音乐卡片）。仅对本次播放生效，不修改全局配置或会话模式；卡片不可用时遵循 `send_if_not_supported` 降级配置
+- **语音示例**：`{"keyword": "坠落星空", "source": "netease", "index": 0, "send_mode": "voice"}`。复用现有语音分段时长、发送间隔与临时文件清理逻辑
 
 ---
 

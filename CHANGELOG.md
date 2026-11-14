@@ -1,5 +1,9 @@
 # 更新日志
 
+## 未发布
+### 功能改进
+- **LLM 语音点歌**：`astr_meting_music` 默认遵循音乐发送配置和当前会话模式，支持用 `send_mode` 单次指定语音、卡片或文件，复用现有语音分段逻辑。关联 #36。
+
 ## 1.1.5 (2026-07-24)
 ### 功能改进
 - **兼容 LLM 传入浮点序号**：在使用 `index` 前尝试转为 `int`，避免模型传入 `0.0` 等导致 `list indices must be integers or slices, not float`
