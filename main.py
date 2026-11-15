@@ -882,18 +882,8 @@ class MetingPlugin(Star):
 
         fallback_val = self.get_send_if_not_supported()
         is_qq = False
-        platform_name = ""
-        umo = getattr(event, "unified_msg_origin", "")
-
-        if umo and isinstance(umo, str):
-            platform_name = umo.split(":")[0]
-
-        if (
-            not platform_name
-            and hasattr(event, "platform_meta")
-            and event.platform_meta
-        ):
-            platform_name = getattr(event.platform_meta, "name", "")
+        # UMO 首段是适配器实例 ID（如 default），不是平台类型。
+        platform_name = event.get_platform_name()
 
         if platform_name:
             if platform_name.lower() in (

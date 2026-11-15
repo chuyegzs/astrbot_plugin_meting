@@ -12,10 +12,14 @@ from main import MetingPlugin, Record, ffmpeg
 
 
 class Event:
-    def __init__(self, platform="aiocqhttp"):
-        self.unified_msg_origin = f"{platform}:FriendMessage:test"
+    def __init__(self, platform="aiocqhttp", platform_id="default"):
+        self.platform = platform
+        self.unified_msg_origin = f"{platform_id}:FriendMessage:test"
         self.messages = []
         self.records = []
+
+    def get_platform_name(self):
+        return self.platform
 
     def get_sender_id(self):
         return "test"
@@ -83,8 +87,8 @@ class SendModeTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_qq_card_and_failed_card_voice_fallback(self):
         from main import Json
-        for success in [True, False]:
-            with self.subTest(success=success):
+        for platform_id, success in [("default", True), ("custom-qq", True), ("default", False)]:
+            with self.subTest(platform_id=platform_id, success=success):
                 self.setUp()
                 self.plugin.config["music_send_config"]["send_if_not_supported"] = 1
                 response = AsyncMock()
@@ -94,7 +98,7 @@ class SendModeTests(unittest.IsolatedAsyncioTestCase):
                 from unittest.mock import MagicMock
                 self.plugin._http_session = MagicMock()
                 self.plugin._http_session.get.return_value.__aenter__ = AsyncMock(return_value=response)
-                event = Event()
+                event = Event(platform_id=platform_id)
                 await self.plugin.astr_meting_music(event, "test", index=0, send_mode="card")
                 if success:
                     self.assertTrue(any(isinstance(msg, list) and isinstance(msg[0], Json)
@@ -102,6 +106,12 @@ class SendModeTests(unittest.IsolatedAsyncioTestCase):
                     self.plugin._download_song.assert_not_awaited()
                 else:
                     self.plugin._split_and_send_audio.assert_awaited_once()
+
+    async def test_non_qq_platform_with_qq_instance_id(self):
+        event = Event("webchat", platform_id="aiocqhttp")
+        await self.plugin.astr_meting_music(event, "test", index=0, send_mode="card")
+        self.plugin._send_as_file.assert_awaited_once()
+        self.plugin._download_song.assert_not_awaited()
 
     def test_tool_schema_exposes_send_mode(self):
         from astrbot.core.provider.register import llm_tools
