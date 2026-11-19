@@ -360,7 +360,7 @@ class MusicSender:
             if cover.startswith(("http://", "https://")):
                 if source == "netease" and "picsize=" not in cover:
                     connector = "&" if "?" in cover else "?"
-                    cover = f"{cover}{connector}picsize=128"
+                    cover = f"{cover}{connector}picsize=320"
             else:
                 cover = ""
 
@@ -411,7 +411,7 @@ class MusicSender:
                             "has_any_album": has_any_album,
                             "theme": theme,
                         },
-                        options={"quality": 90},
+                        options={"quality": 100, "scale": "device"},
                     ),
                     timeout=15,
                 )
