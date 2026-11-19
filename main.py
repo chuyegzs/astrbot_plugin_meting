@@ -1478,6 +1478,51 @@ class MetingPlugin(Star):
         if msg_to_delete and event:
             await self._delete_search_msg(event, msg_to_delete)
 
+    async def _send_search_result(
+        self, event: AstrMessageEvent, message: str, image_url: str | None = None
+    ) -> Any:
+        """发送搜索结果并获取消息 ID，用于自动撤回。"""
+        payload = (
+            [{"type": "image", "data": {"file": image_url}}] if image_url else message
+        )
+        if self.get_search_results_withdrawn_after_timeout() != -1:
+            try:
+                bot = getattr(event, "bot", None)
+                if bot:
+                    group_id = getattr(event.message_obj, "group_id", None)
+                    ret = None
+                    if group_id:
+                        if hasattr(bot, "send_group_msg"):
+                            ret = await bot.send_group_msg(
+                                group_id=int(group_id), message=payload
+                            )
+                        elif hasattr(bot, "api") and hasattr(bot.api, "call_action"):
+                            ret = await bot.api.call_action(
+                                "send_group_msg",
+                                group_id=int(group_id),
+                                message=payload,
+                            )
+                    elif event.session_id and event.session_id.isdigit():
+                        if hasattr(bot, "send_private_msg"):
+                            ret = await bot.send_private_msg(
+                                user_id=int(event.session_id), message=payload
+                            )
+                        elif hasattr(bot, "api") and hasattr(bot.api, "call_action"):
+                            ret = await bot.api.call_action(
+                                "send_private_msg",
+                                user_id=int(event.session_id),
+                                message=payload,
+                            )
+
+                    if ret and isinstance(ret, dict) and "message_id" in ret:
+                        return ret["message_id"]
+            except Exception as e:
+                logger.warning(f"尝试直接发送搜索结果失败，回退到默认方式: {e}")
+
+        await event.send(
+            event.image_result(image_url) if image_url else event.plain_result(message)
+        )
+
     @filter.command("搜歌", alias={"search", "search song"})
     async def search_song(self, event: AstrMessageEvent):
         """搜索歌曲（搜歌 xxx格式）
@@ -1514,6 +1559,7 @@ class MetingPlugin(Star):
 
         message = f"🎵 搜索结果 ({SOURCE_DISPLAY.get(source, source)})\n"
         message += "━━━━━━━━━━━━━━\n"
+        songs = []
         for idx, song in enumerate(results, 1):
             name = song.get("name") or song.get("title") or "未知歌名"
             artist = song.get("artist") or song.get("author") or "未知歌手"
@@ -1521,6 +1567,18 @@ class MetingPlugin(Star):
 
             if isinstance(artist, list):
                 artist = " / ".join(artist)
+
+            cover = song.get("pic") or song.get("cover") or ""
+            songs.append(
+                {
+                    "name": name,
+                    "artist": artist,
+                    "album": album if album != "未知专辑" else "",
+                    "cover": cover
+                    if isinstance(cover, str) and cover.startswith(("http://", "https://"))
+                    else "",
+                }
+            )
 
             if album != "未知专辑":
                 message += f"[{idx}] {name}  👤 {artist}  💿 {album}\n"
@@ -1530,55 +1588,28 @@ class MetingPlugin(Star):
         message += "━━━━━━━━━━━━━━\n"
         message += '💡 提示：发送 "点歌 1" 即可播放第一首歌'
 
-        # 尝试直接发送消息以获取 Message ID (针对自动撤回功能)
-        msg_id = None
-        sent_success = False
-        withdrawn_timeout = self.get_search_results_withdrawn_after_timeout()
-
-        if withdrawn_timeout != -1:
-            try:
-                bot = getattr(event, "bot", None)
-                if bot:
-                    group_id = getattr(event.message_obj, "group_id", None)
-                    ret = None
-                    if group_id:
-                        if hasattr(bot, "send_group_msg"):
-                            ret = await bot.send_group_msg(
-                                group_id=int(group_id), message=message
-                            )
-                        elif hasattr(bot, "api") and hasattr(bot.api, "call_action"):
-                            ret = await bot.api.call_action(
-                                "send_group_msg",
-                                group_id=int(group_id),
-                                message=message,
-                            )
-                    else:
-                        if event.session_id and event.session_id.isdigit():
-                            if hasattr(bot, "send_private_msg"):
-                                ret = await bot.send_private_msg(
-                                    user_id=int(event.session_id), message=message
-                                )
-                            elif hasattr(bot, "api") and hasattr(
-                                bot.api, "call_action"
-                            ):
-                                ret = await bot.api.call_action(
-                                    "send_private_msg",
-                                    user_id=int(event.session_id),
-                                    message=message,
-                                )
-
-                    if ret and isinstance(ret, dict) and "message_id" in ret:
-                        msg_id = ret["message_id"]
-                        sent_success = True
-            except Exception as e:
-                logger.warning(f"尝试直接发送搜索结果失败，回退到默认方式: {e}")
-
-        if not sent_success:
-            await event.send(event.plain_result(message))
+        try:
+            with open(
+                os.path.join(os.path.dirname(__file__), "search.html"), encoding="utf-8"
+            ) as f:
+                template = f.read()
+            image_url = await asyncio.wait_for(
+                self.html_render(
+                    template,
+                    {"songs": songs, "source": SOURCE_DISPLAY.get(source, source)},
+                    options={"quality": 90},
+                ),
+                timeout=30,
+            )
+            msg_id = await self._send_search_result(event, message, image_url)
+        except Exception as e:
+            logger.warning(f"搜索结果图片生成或发送失败，回退到文字: {e}")
+            msg_id = await self._send_search_result(event, message)
 
         await self._set_session_results(session_id, results, sender_id, msg_id)
 
         # 处理超时自动撤回（实际上是清除缓存 + 撤回消息）
+        withdrawn_timeout = self.get_search_results_withdrawn_after_timeout()
         if withdrawn_timeout > 0:
             asyncio.create_task(
                 self._clear_search_results_delayed(
