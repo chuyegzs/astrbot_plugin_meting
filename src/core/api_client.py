@@ -281,7 +281,15 @@ class MetingApiClient:
                             break
                         continue
                     if status == 200:
-                        raw_bytes = await resp.content.read(2 * 1024 * 1024)
+                        chunks: list[bytes] = []
+                        total = 0
+                        async for chunk in resp.content.iter_chunked(65536):
+                            total += len(chunk)
+                            if total > 3 * 1024 * 1024:
+                                chunks.clear()
+                                break
+                            chunks.append(chunk)
+                        raw_bytes = b"".join(chunks)
                     break
 
             if not raw_bytes and current_url:
@@ -289,7 +297,15 @@ class MetingApiClient:
                     current_url, allow_redirects=True, timeout=sample_timeout
                 ) as img_resp:
                     if img_resp.status == 200:
-                        raw_bytes = await img_resp.content.read(2 * 1024 * 1024)
+                        chunks = []
+                        total = 0
+                        async for chunk in img_resp.content.iter_chunked(65536):
+                            total += len(chunk)
+                            if total > 3 * 1024 * 1024:
+                                chunks.clear()
+                                break
+                            chunks.append(chunk)
+                        raw_bytes = b"".join(chunks)
 
             if not raw_bytes:
                 return current_url, ""
