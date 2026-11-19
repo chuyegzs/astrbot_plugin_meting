@@ -52,7 +52,7 @@
 | 特性 | 说明 |
 |------|------|
 | 🎵 **多音源支持** | QQ 音乐、网易云、酷狗、酷我（取决于 API） |
-| 🖼️ **图片搜索结果** | 带封面的歌曲列表，图片生成或发送失败时回退文字 |
+| 🖼️ **图片搜索结果** | 带封面的歌曲列表，支持浅色/深色/定时主题切换与开关控制，失败时自动回退文字 |
 | 💬 **会话级音源** | 每个会话独立切换音源，互不影响 |
 | ✂️ **智能分段** | 超长歌曲自动分割发送，支持 30~300s 可配置分段 |
 | 🎨 **音乐卡片** | 精美卡片消息，含封面、歌手、跳转链接 |
@@ -106,7 +106,7 @@ pip install -r requirements.txt
 
 </details>
 
-> 💡 插件依赖 `aiohttp`、`pydub`、`imageio-ffmpeg`、`packaging`，WebUI 安装时会自动处理。
+> 💡 插件依赖 `aiohttp`、`imageio-ffmpeg`、`packaging`、`py-machineid`，WebUI 安装时会自动处理。
 
 ---
 
@@ -128,7 +128,9 @@ pip install -r requirements.txt
 | `切换QQ音乐` | `switch tencent` | 切换会话默认音源为 QQ 音乐 |
 | `切换酷狗` | `switch kugou` | 切换会话默认音源为酷狗 |
 | `切换酷我` | `switch kuwo` | 切换会话默认音源为酷我 |
-| `切换发送模式 <mode>` | `switch meting mode` | 切换会话的发送模式 |
+| `切换搜歌主题 <theme>` | `切换搜索主题` `切换主题` | 切换会话搜歌图片主题（浅色/深色/自动/默认） |
+| `切换搜歌展示 <mode>` | `切换搜索展示` `切换搜索模式` | 切换会话搜歌展示方式（图片/文本/默认，仅管理员） |
+| `切换发送模式 <mode>` | `switch meting mode` | 切换会话的发送模式（仅管理员） |
 
 ### 🔍 搜索歌曲
 
@@ -138,11 +140,28 @@ pip install -r requirements.txt
 搜歌 坠落星空
 ```
 
-搜索结果以图片列表显示，包含序号、封面、歌名、歌手和专辑。
+搜索结果以图片列表显示，包含序号、封面、歌名、歌手和专辑：
 
-![坠落星空搜索结果示例](assets/search-example.jpg)
+![坠落星空搜索结果示例](src/assets/search-example.jpg)
 
 图片使用 AstrBot 的 T2I 服务渲染，生成或发送失败时自动回退为文字。
+
+文本格式示例：
+
+```
+🎵 搜索结果 (网易云音乐)
+━━━━━━━━━━━━━━
+[1] 坠落星空  👤 小星星Aurora  💿 画一个星星一个你
+[2] 坠落星空  👤 peony  💿 小星星Aurora 刀小刀 李响/钱润玉- 坠落星空
+[3] 坠落星空(合唱版)  👤 跪四人  💿 坠落星空（合唱版）
+[4] 溯x大雾x坠落星空  👤 观药  💿 溯x大雾x坠落星空
+[5] 坠落星空  👤 李响/钱润玉  💿 坠落星空
+[6] 坠落星空 (Live)  👤 小星星Aurora  💿 万魔原创音乐节
+[7] 坠落星空(钢琴版)  👤 Ben George  💿 流行钢琴
+[8] 坠落星空  👤 栗莓Giovanna  💿 四暖未歇
+━━━━━━━━━━━━━━
+💡 提示：发送 "点歌 1" 即可播放第一首歌
+```
 
 ### ▶️ 播放歌曲
 
@@ -171,12 +190,26 @@ QQ点歌 坠落星空
 切换酷我
 ```
 
-### 🔄 切换模式
+### 🔄 切换模式与主题
 
-音乐发送模式设置**按会话隔离**，切换后不影响其他群聊/私聊：<br><br>
-【仅管理员可使用】
+搜歌图片主题、搜歌展示方式与音乐发送模式均**按会话隔离**，切换后不影响其他群聊/私聊：
+
+**所有人可用（会话级主题切换）**：
 
 ```
+切换搜歌主题 浅色
+切换搜歌主题 深色
+切换搜歌主题 自动
+切换搜歌主题 默认
+```
+
+**仅管理员可用（会话级展示与发送方式切换）**：
+
+```
+切换搜歌展示 图片
+切换搜歌展示 文本
+切换搜歌展示 默认
+
 切换发送模式 卡片
 切换发送模式 语音
 切换发送模式 文件
@@ -196,8 +229,8 @@ QQ点歌 坠落星空
 
 插件暴露了 `astr_meting_music` Function Tool，AI 模型可直接调用：
 
-- **搜索**：传入 `keyword` + `source`（`index=-1`），返回歌曲列表 JSON
-- **播放**：传入 `keyword` + `source` + `index`，自动发送音乐卡片
+- **搜索**：传入 `keyword` + `source`（默认 `"auto"` 同时搜索网易云与 QQ 音乐，也可指定单一音源），返回环境信息 `env`、`search_id`（含 `id`、`time`、`deadline`，有效期 60s）及带唯一序号（从 `0` 开始）的歌曲列表 JSON
+- **播放**：在 `source` 中传入包含 `search_id` 与 `send_mode`（`"card"` 或 `"file"`）的 JSON，并指定歌曲序号 `index`（从 `0` 开始），优先发送音乐卡片，不支持时可切换为文件发送
 
 ---
 
@@ -228,10 +261,17 @@ QQ点歌 坠落星空
 | 配置项 | 类型 | 默认值 | 范围 | 说明 |
 |--------|------|--------|------|------|
 | `default_source` | 字符串 | `netease` | — | 默认音源 |
-| `search_result_count` | 整数 | `9` | 3~30 | 搜索结果数量 |
+| `search_result_count` | 整数 | `8` | 3~30 | 搜索结果数量（图片模式最多显示 12 首） |
 | `search_result_expiration_time` | 整数 | `120` | 30~300s | 结果过期时间 |
 | `search_results_withdrawn_after_timeout` | 整数 | `60` | -1~300s | 超时自动撤回；`0`=点歌后立即撤回；`-1`=不撤回 |
 | `search_result_restrictions` | 布尔 | `false` | — | 搜索结果仅对搜索者本人有效 |
+
+### 搜索数据展示设置
+
+| 配置项 | 类型 | 默认值 | 可选值 | 说明 |
+|--------|------|--------|--------|------|
+| `render_search_result_as_image` | 布尔 | `true` | — | 是否使用图片展示搜索结果（关闭后直接以文本形式发送） |
+| `image_theme` | 字符串 | `auto` | `auto`, `light`, `dark` | 图片主题色：`auto`（05:59 - 18:59 为浅色，其余时间为深色）、`light`（浅色）、`dark`（深色） |
 
 ### 音乐发送配置
 
@@ -327,9 +367,9 @@ QQ点歌 坠落星空
 </details>
 
 <details>
-<summary><b>Q: 播放歌曲提示缺少 pydub 依赖</b></summary>
+<summary><b>Q: 播放歌曲提示音频处理组件依赖加载失败</b></summary>
 
-请确保已安装 FFmpeg，并重新安装插件依赖：
+请重新安装插件依赖（会自动安装内置 FFmpeg 的 `imageio-ffmpeg`）：
 ```bash
 pip install -r requirements.txt
 ```
@@ -349,15 +389,28 @@ pip install -r requirements.txt
 
 ```
 astrbot_plugin_meting/
-├── main.py              # 🔌 插件主代码
-├── search.html          # 🖼️ 搜索结果图片模板
-├── metadata.yaml        # 📋 插件元数据
-├── _conf_schema.json    # ⚙️ 配置文件 Schema
-├── requirements.txt     # 📦 Python 依赖
-├── README.md            # 📖 说明文档
-├── CHANGELOG.md         # 📝 更新日志
-├── LICENSE              # 📜 许可证
-└── .gitignore           # 🙈 Git 忽略文件
+├── main.py                  # 🔌 插件主入口与指令路由
+├── src/
+│   ├── assets/              # 🎨 静态资源目录
+│   ├── core/                # 🧠 核心业务模块
+│   │   ├── config.py        # ⚙️ 配置管理与类型校验
+│   │   ├── session.py       # 💬 会话状态与搜索缓存管理
+│   │   ├── api_client.py    # 🌐 MetingAPI 与卡片签名客户端
+│   │   ├── audio.py         # 🎧 音频下载、本地缓存与 FFmpeg 切片
+│   │   ├── sender.py        # 📤 消息发送编排、图片渲染与撤回
+│   │   └── llm_handler.py   # 🤖 LLM 点歌工具逻辑
+│   ├── utils/               # 🛠️ 通用常量与纯函数工具
+│   │   ├── constants.py     # 📌 全局常量与自定义异常
+│   │   └── helpers.py       # 🔧 URL/元数据规范化与平台探测
+│   └── views/               # 🖼️ 视图模板目录
+│       └── search.html      # 📄 搜索结果图片渲染模板
+├── metadata.yaml            # 📋 插件元数据
+├── _conf_schema.json        # ⚙️ 配置文件 Schema
+├── requirements.txt         # 📦 Python 依赖
+├── README.md                # 📖 说明文档
+├── CHANGELOG.md             # 📝 更新日志
+├── LICENSE                  # 📜 许可证
+└── .gitignore               # 🙈 Git 忽略文件
 ```
 
 ---
