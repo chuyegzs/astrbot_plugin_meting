@@ -1,11 +1,15 @@
 """MetingAPI 请求、音乐卡片签名与音频后缀探针客户端。"""
 
+import asyncio
+import colorsys
+import io
 import time
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote, urljoin, urlparse
 
 import aiohttp
+from PIL import Image
 
 from astrbot.api import logger
 from astrbot.core.config.default import VERSION
@@ -153,9 +157,13 @@ class MetingApiClient:
         session = self.ensure_session()
         source = song_meta["source"]
         cover = song_meta["cover"]
-        if cover and source == "netease" and "picsize=" not in cover:
-            connector = "&" if "?" in cover else "?"
-            cover = f"{cover}{connector}picsize=320"
+        if cover and "picsize=" not in cover:
+            if source == "netease":
+                connector = "&" if "?" in cover else "?"
+                cover = f"{cover}{connector}picsize=320"
+            elif source == "tencent":
+                connector = "&" if "?" in cover else "?"
+                cover = f"{cover}{connector}picsize=300"
 
         song_url = force_https(song_meta["song_url"])
         cover_url = await self.resolve_cover_url(cover) if cover else ""
@@ -229,6 +237,113 @@ class MetingApiClient:
                 f"{LOG_PREFIX}[接口] 解析封面 302 跳转失败 ({cover_url})，保留原地址: {e}"
             )
         return current_url
+
+    async def resolve_cover_and_accent(
+        self,
+        cover_url: str,
+        theme: str,
+    ) -> tuple[str, str]:
+        """单次请求解析封面 302 真实图床 URL，并提取适配当前主题的高饱和点缀色。
+
+        若 Meting 接口返回 302 跳转，仅调用一次 Meting 接口获取图床地址，随后直接拉取该图床 URL 取色；
+        若接口直接返回 200 图片正文，则直接复用本次响应字节取色，避免重复请求 Meting 接口。
+        若未能提取到有效颜色（黑白封面或拉取失败），返回空字符串交由模板使用无色胶囊与封面模糊光晕。
+
+        Args:
+            cover_url: 原始封面地址。
+            theme: 当前渲染主题（'dark' 或 'light'）。
+
+        Returns:
+            二元组 (提供给 T2I 的真实封面 URL, 十六进制主题点缀色或空字符串)。
+        """
+        current_url = force_https(cover_url)
+        if not current_url:
+            return "", ""
+
+        session = self.ensure_session()
+        resolve_timeout = aiohttp.ClientTimeout(total=5)
+        sample_timeout = aiohttp.ClientTimeout(total=3)
+        raw_bytes = b""
+
+        try:
+            for _ in range(3):
+                async with session.get(
+                    current_url, allow_redirects=False, timeout=resolve_timeout
+                ) as resp:
+                    status = resp.status
+                    location = resp.headers.get("Location", "")
+                    if 300 <= status < 400 and location:
+                        next_url = force_https(urljoin(current_url, location))
+                        prev_host = urlparse(current_url).netloc.lower()
+                        next_host = urlparse(next_url).netloc.lower()
+                        current_url = next_url
+                        if next_host and next_host != prev_host:
+                            break
+                        continue
+                    if status == 200:
+                        raw_bytes = await resp.content.read(2 * 1024 * 1024)
+                    break
+
+            if not raw_bytes and current_url:
+                async with session.get(
+                    current_url, allow_redirects=True, timeout=sample_timeout
+                ) as img_resp:
+                    if img_resp.status == 200:
+                        raw_bytes = await img_resp.content.read(2 * 1024 * 1024)
+
+            if not raw_bytes:
+                return current_url, ""
+
+            def _compute() -> str:
+                with Image.open(io.BytesIO(raw_bytes)) as img:
+                    rgb_bytes = (
+                        img.convert("RGB")
+                        .resize((32, 32), Image.Resampling.BILINEAR)
+                        .tobytes()
+                    )
+                buckets: dict[int, list[float]] = {}
+                for idx in range(0, len(rgb_bytes), 3):
+                    r = rgb_bytes[idx] / 255.0
+                    g = rgb_bytes[idx + 1] / 255.0
+                    b = rgb_bytes[idx + 2] / 255.0
+                    h, s, v = colorsys.rgb_to_hsv(r, g, b)
+                    if s < 0.22 or v < 0.18 or v > 0.96:
+                        continue
+                    w = (s**1.5) * (0.4 + 0.6 * v)
+                    b_idx = int(h * 24) % 24
+                    prev = buckets.get(b_idx)
+                    if prev is None:
+                        buckets[b_idx] = [w, h * w, s * w]
+                    else:
+                        prev[0] += w
+                        prev[1] += h * w
+                        prev[2] += s * w
+
+                if not buckets:
+                    return ""
+                best = max(buckets.values(), key=lambda x: x[0])
+                if best[0] < 3.0:
+                    return ""
+                avg_h = best[1] / best[0]
+                avg_s = best[2] / best[0]
+                if theme == "light":
+                    rr, gg, bb = colorsys.hls_to_rgb(
+                        avg_h, 0.41, min(max(avg_s * 1.1, 0.65), 0.88)
+                    )
+                else:
+                    dark_l = 0.71 if 0.57 <= avg_h <= 0.80 else 0.64
+                    rr, gg, bb = colorsys.hls_to_rgb(
+                        avg_h, dark_l, min(max(avg_s * 1.15, 0.72), 0.95)
+                    )
+                return f"#{int(rr * 255):02x}{int(gg * 255):02x}{int(bb * 255):02x}"
+
+            accent = await asyncio.to_thread(_compute)
+            return current_url, accent
+        except Exception as e:
+            logger.debug(
+                f"{LOG_PREFIX}[接口] 解析封面或提取主题色失败 ({cover_url}): {e}"
+            )
+            return current_url, ""
 
     async def probe_song_ext(self, song_url: str) -> str:
         """发送 HEAD 请求跟踪重定向并嗅探音频真实扩展名（不下载正文）。

@@ -358,9 +358,13 @@ class MusicSender:
 
             cover = meta["cover"]
             if cover.startswith(("http://", "https://")):
-                if source == "netease" and "picsize=" not in cover:
-                    connector = "&" if "?" in cover else "?"
-                    cover = f"{cover}{connector}picsize=320"
+                if "picsize=" not in cover:
+                    if source == "netease":
+                        connector = "&" if "?" in cover else "?"
+                        cover = f"{cover}{connector}picsize=320"
+                    elif source == "tencent":
+                        connector = "&" if "?" in cover else "?"
+                        cover = f"{cover}{connector}picsize=300"
             else:
                 cover = ""
 
@@ -390,17 +394,6 @@ class MusicSender:
                         self.template_path.read_text, encoding="utf-8"
                     )
                 render_songs = songs[:12]
-                resolved_covers = await asyncio.gather(
-                    *(
-                        self.api_client.resolve_cover_url(s["cover"])
-                        for s in render_songs
-                    )
-                )
-                for song_item, resolved_cover in zip(
-                    render_songs, resolved_covers, strict=True
-                ):
-                    song_item["cover"] = resolved_cover
-                has_any_album = any(bool(s.get("album")) for s in render_songs)
                 theme_setting = self.cfg.get_image_theme(event).strip().lower()
                 if theme_setting in ("light", "亮色", "浅色"):
                     theme = "light"
@@ -411,6 +404,22 @@ class MusicSender:
                     theme = (
                         "light" if dtime(5, 59) <= now_time <= dtime(18, 59) else "dark"
                     )
+
+                resolved_pairs = await asyncio.gather(
+                    *(
+                        self.api_client.resolve_cover_and_accent(
+                            s["cover"],
+                            theme,
+                        )
+                        for s in render_songs
+                    )
+                )
+                for song_item, (resolved_cover, accent) in zip(
+                    render_songs, resolved_pairs, strict=True
+                ):
+                    song_item["cover"] = resolved_cover
+                    song_item["accent"] = accent
+                has_any_album = any(bool(s.get("album")) for s in render_songs)
 
                 image_url = await asyncio.wait_for(
                     self.html_render_fn(

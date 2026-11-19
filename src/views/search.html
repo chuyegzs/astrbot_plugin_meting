@@ -12,107 +12,142 @@
     }
     :root, [data-theme="dark"] {
       --bg-color: #03040a;
-      --bg-radial-1: rgba(138, 173, 244, 0.14);
-      --bg-radial-2: rgba(255, 240, 245, 0.09);
+      --bg-radial-1: rgba(96, 165, 250, 0.14);
+      --bg-radial-2: rgba(255, 240, 245, 0.08);
+      --streak-opacity: 0.22;
       --header-border: rgba(255, 240, 245, 0.12);
-      --title-color: #fff0f5;
-      --title-shadow: rgba(255, 240, 245, 0.2);
-      --sub-color: rgba(255, 240, 245, 0.5);
-      --badge-text: #8aadf4;
-      --badge-bg: rgba(138, 173, 244, 0.12);
-      --badge-border: rgba(138, 173, 244, 0.28);
-      --card-bg: rgba(255, 255, 255, 0.06);
-      --card-border: rgba(255, 240, 245, 0.25);
-      --card-shadow: rgba(0, 0, 0, 0.35);
-      --card-glow-shadow: rgba(255, 240, 245, 0.06);
-      --number-color: #8aadf4;
-      --cover-bg: rgba(255, 255, 255, 0.08);
-      --cover-border: rgba(255, 240, 245, 0.16);
+      --title-color: #ffffff;
+      --title-shadow: rgba(255, 240, 245, 0.18);
+      --sub-color: rgba(255, 240, 245, 0.68);
+      --badge-text: rgba(255, 240, 245, 0.92);
+      --badge-bg: rgba(255, 255, 255, 0.06);
+      --badge-border: rgba(255, 240, 245, 0.24);
+      --badge-shadow: rgba(138, 173, 244, 0.18);
+      --card-bg: rgba(255, 255, 255, 0.08);
+      --card-border-base: rgba(255, 240, 245, 0.3);
+      --card-shadow: rgba(0, 0, 0, 0.38);
+      --glow-opacity: 0.42;
+      --cover-bg: rgba(12, 16, 28, 0.72);
+      --cover-shadow: rgba(0, 0, 0, 0.3);
       --name-color: #fff0f5;
-      --tag-color: #fff0f5;
-      --tag-bg: rgba(255, 240, 245, 0.1);
-      --tag-border: rgba(255, 240, 245, 0.25);
-      --tag-empty-bg: rgba(255, 240, 245, 0.04);
-      --tag-empty-border: rgba(255, 240, 245, 0.14);
-      --note-color: rgba(255, 240, 245, 0.55);
-      --footer-color: rgba(255, 240, 245, 0.65);
+      --note-color: rgba(255, 255, 255, 0.68);
+      --footer-color: rgba(255, 255, 255, 0.6);
       --paw-color: rgba(255, 240, 245, 0.9);
-      --glow-fallback: rgba(138, 173, 244, 0.6);
+      --neutral-text: rgba(255, 240, 245, 0.85);
+      --neutral-bg: rgba(255, 255, 255, 0.08);
+      --neutral-border: rgba(255, 240, 245, 0.24);
+      --neutral-cover-border: rgba(255, 240, 245, 0.36);
+      --neutral-glow-shadow: rgba(255, 240, 245, 0.08);
     }
     [data-theme="light"] {
-      --bg-color: #f7f8fb;
-      --bg-radial-1: rgba(138, 173, 244, 0.22);
-      --bg-radial-2: rgba(255, 182, 193, 0.2);
+      --bg-color: #f4f6fb;
+      --bg-radial-1: rgba(96, 165, 250, 0.18);
+      --bg-radial-2: rgba(251, 114, 153, 0.14);
+      --streak-opacity: 0.08;
       --header-border: rgba(25, 35, 80, 0.12);
-      --title-color: #192350;
-      --title-shadow: rgba(25, 35, 80, 0.08);
-      --sub-color: rgba(25, 35, 80, 0.55);
-      --badge-text: #2d55b5;
+      --title-color: #162044;
+      --title-shadow: rgba(25, 35, 80, 0.06);
+      --sub-color: rgba(25, 35, 80, 0.58);
+      --badge-text: #274ca8;
       --badge-bg: rgba(45, 85, 181, 0.08);
-      --badge-border: rgba(45, 85, 181, 0.22);
-      --card-bg: rgba(255, 255, 255, 0.78);
-      --card-border: rgba(25, 35, 80, 0.14);
+      --badge-border: rgba(45, 85, 181, 0.24);
+      --badge-shadow: rgba(45, 85, 181, 0.1);
+      --card-bg: rgba(255, 255, 255, 0.82);
+      --card-border-base: rgba(25, 35, 80, 0.14);
       --card-shadow: rgba(25, 35, 80, 0.08);
-      --card-glow-shadow: rgba(138, 173, 244, 0.1);
-      --number-color: #2d55b5;
+      --glow-opacity: 0.24;
       --cover-bg: rgba(25, 35, 80, 0.06);
-      --cover-border: rgba(25, 35, 80, 0.12);
-      --name-color: #192350;
-      --tag-color: #2d55b5;
-      --tag-bg: rgba(45, 85, 181, 0.08);
-      --tag-border: rgba(45, 85, 181, 0.22);
-      --tag-empty-bg: rgba(25, 35, 80, 0.03);
-      --tag-empty-border: rgba(25, 35, 80, 0.1);
-      --note-color: rgba(25, 35, 80, 0.6);
-      --footer-color: rgba(25, 35, 80, 0.65);
-      --paw-color: rgba(25, 35, 80, 0.9);
-      --glow-fallback: rgba(138, 173, 244, 0.45);
+      --cover-shadow: rgba(25, 35, 80, 0.12);
+      --name-color: #162044;
+      --note-color: rgba(25, 35, 80, 0.62);
+      --footer-color: rgba(25, 35, 80, 0.62);
+      --paw-color: rgba(25, 35, 80, 0.85);
+      --neutral-text: rgba(25, 35, 80, 0.72);
+      --neutral-bg: rgba(25, 35, 80, 0.06);
+      --neutral-border: rgba(25, 35, 80, 0.16);
+      --neutral-cover-border: rgba(25, 35, 80, 0.24);
+      --neutral-glow-shadow: rgba(25, 35, 80, 0.06);
     }
     body {
       width: 1120px;
       margin: 0;
-      padding: 36px 32px;
+      padding: 34px 32px 30px;
+      position: relative;
+      overflow: hidden;
       background-color: var(--bg-color);
       background-image:
-        radial-gradient(circle at 10% 15%, var(--bg-radial-1) 0%, transparent 45%),
-        radial-gradient(circle at 90% 85%, var(--bg-radial-2) 0%, transparent 45%);
+        radial-gradient(circle at 12% 14%, var(--bg-radial-1) 0%, transparent 44%),
+        radial-gradient(circle at 88% 86%, var(--bg-radial-2) 0%, transparent 44%);
       color: var(--name-color);
       font-family: "MiSans VF", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
       -webkit-font-smoothing: antialiased;
     }
+    .star-trails-bg {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: var(--streak-opacity);
+      background-image:
+        repeating-linear-gradient(
+          68deg,
+          transparent 0px,
+          transparent 44px,
+          rgba(138, 173, 244, 0.35) 44px,
+          rgba(138, 173, 244, 0.35) 45.5px,
+          transparent 45.5px,
+          transparent 112px,
+          rgba(255, 240, 245, 0.28) 112px,
+          rgba(255, 240, 245, 0.28) 113px,
+          transparent 113px,
+          transparent 178px,
+          rgba(251, 146, 60, 0.25) 178px,
+          rgba(251, 146, 60, 0.25) 179.5px,
+          transparent 179.5px,
+          transparent 246px
+        );
+      mask-image: radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0.85) 20%, transparent 90%);
+      -webkit-mask-image: radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0.85) 20%, transparent 90%);
+    }
+    header, main, footer {
+      position: relative;
+      z-index: 1;
+    }
     header {
       display: flex;
       justify-content: space-between;
-      align-items: flex-end;
-      margin-bottom: 24px;
+      align-items: baseline;
+      margin-bottom: 22px;
       padding-bottom: 16px;
       border-bottom: 1px solid var(--header-border);
     }
     .header-left {
       display: flex;
       align-items: baseline;
-      gap: 12px;
+      gap: 14px;
     }
     h1 {
-      font-size: 28px;
+      font-size: 30px;
       font-weight: 700;
-      letter-spacing: -0.01em;
+      letter-spacing: 0.02em;
       color: var(--title-color);
-      text-shadow: 0 0 20px var(--title-shadow);
+      text-shadow: 0 0 22px var(--title-shadow);
     }
     .header-sub {
       font-size: 14px;
       color: var(--sub-color);
-      letter-spacing: 0.04em;
+      letter-spacing: 0.05em;
     }
     .badge {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 500;
-      padding: 4px 14px;
+      padding: 5px 15px;
       border-radius: 9999px;
       color: var(--badge-text);
       background: var(--badge-bg);
       border: 1px solid var(--badge-border);
+      box-shadow: 0 0 14px var(--badge-shadow);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
     main {
       display: grid;
@@ -130,30 +165,45 @@
       overflow: hidden;
       border-radius: 14px;
       background-color: var(--card-bg);
-      border: 1px solid var(--card-border);
-      box-shadow: 0 4px 20px var(--card-shadow), 0 0 16px var(--card-glow-shadow);
+      border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--card-border-base));
+      box-shadow:
+        0 6px 22px var(--card-shadow),
+        0 0 18px color-mix(in srgb, var(--accent) 12%, transparent);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
+    }
+    .hover-card.no-accent .hover-card-bg {
+      border-color: var(--card-border-base);
+      box-shadow:
+        0 6px 22px var(--card-shadow),
+        0 0 16px var(--neutral-glow-shadow);
     }
     .hover-card-glow {
       position: absolute;
       pointer-events: none;
       border-radius: 9999px;
-      width: 120px;
-      height: 120px;
-      right: -25px;
-      top: -25px;
+      width: 148px;
+      height: 148px;
+      right: -26px;
+      top: -28px;
+      background-color: var(--accent);
+      filter: blur(46px);
+      -webkit-filter: blur(46px);
+      opacity: var(--glow-opacity);
+    }
+    .hover-card.no-accent .hover-card-glow {
+      background-color: transparent;
+      overflow: hidden;
+      opacity: 0.5;
       filter: blur(36px);
       -webkit-filter: blur(36px);
-      opacity: 0.5;
-      overflow: hidden;
-      background: radial-gradient(circle, var(--glow-fallback) 0%, transparent 70%);
     }
     .hover-card-glow img {
       width: 100%;
       height: 100%;
       object-fit: cover;
       transform: scale(1.6);
+      display: block;
     }
     .hover-card-body {
       position: relative;
@@ -161,27 +211,56 @@
       display: flex;
       align-items: center;
       gap: 14px;
-      padding: 16px 18px;
+      padding: 15px 18px;
     }
     .number {
-      min-width: 28px;
+      width: 32px;
+      height: 32px;
       flex-shrink: 0;
-      text-align: center;
-      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      font-size: 13px;
       font-weight: 700;
-      color: var(--number-color);
+      letter-spacing: 0.02em;
       font-variant-numeric: tabular-nums;
+      color: var(--accent);
+      background-color: color-mix(in srgb, var(--accent) 14%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 36%, transparent);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+    .hover-card.no-accent .number {
+      color: var(--neutral-text);
+      background-color: var(--neutral-bg);
+      border-color: var(--neutral-border);
+      box-shadow: none;
     }
     .cover {
       width: 72px;
       height: 72px;
       flex-shrink: 0;
-      border-radius: 12px;
-      overflow: hidden;
-      background-color: var(--cover-bg);
-      border: 1px solid var(--cover-border);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      padding: 3px;
+      border-radius: 14px;
+      background-color: color-mix(in srgb, var(--accent) 20%, transparent);
+      border: 2px solid color-mix(in srgb, var(--accent) 62%, transparent);
+      box-shadow:
+        0 0 22px color-mix(in srgb, var(--accent) 34%, transparent),
+        0 4px 12px var(--cover-shadow);
       position: relative;
+    }
+    .hover-card.no-accent .cover {
+      background-color: var(--neutral-bg);
+      border-color: var(--neutral-cover-border);
+      box-shadow: 0 4px 12px var(--cover-shadow);
+    }
+    .cover-inner {
+      width: 100%;
+      height: 100%;
+      border-radius: 9px;
+      overflow: hidden;
+      position: relative;
+      background-color: var(--cover-bg);
     }
     .cover-placeholder {
       position: absolute;
@@ -190,9 +269,9 @@
       align-items: center;
       justify-content: center;
       font-size: 22px;
-      opacity: 0.25;
+      opacity: 0.32;
     }
-    .cover img {
+    .cover-inner img {
       position: relative;
       z-index: 1;
       width: 100%;
@@ -211,7 +290,7 @@
       gap: 10px;
     }
     .name {
-      font-size: 17px;
+      font-size: 16.5px;
       font-weight: 600;
       color: var(--name-color);
       white-space: nowrap;
@@ -222,25 +301,29 @@
     }
     .tag {
       flex-shrink: 0;
-      max-width: 130px;
-      padding: 2px 10px;
+      max-width: 138px;
+      padding: 3px 11px;
       border-radius: 9999px;
       font-size: 12px;
-      font-weight: 500;
+      font-weight: 600;
       letter-spacing: 0.03em;
-      color: var(--tag-color);
-      background-color: var(--tag-bg);
-      border: 1px solid var(--tag-border);
+      color: var(--accent);
+      background-color: color-mix(in srgb, var(--accent) 16%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 14%, transparent);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .tag.tag-empty {
-      min-width: 30px;
-      height: 20px;
-      padding: 0;
-      background-color: var(--tag-empty-bg);
-      border: 1px solid var(--tag-empty-border);
+    .hover-card.no-accent .tag {
+      color: var(--neutral-text);
+      background-color: var(--neutral-bg);
+      border-color: var(--neutral-border);
+      box-shadow: none;
+    }
+    .tag.tag-single {
+      opacity: 0.86;
+      font-weight: 500;
     }
     .note {
       margin-top: 6px;
@@ -251,20 +334,24 @@
       text-overflow: ellipsis;
     }
     footer {
-      margin-top: 24px;
-      font-size: 14px;
+      margin-top: 22px;
+      font-size: 13.5px;
       color: var(--footer-color);
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 7px;
+      letter-spacing: 0.03em;
     }
     .paw {
       color: var(--paw-color);
-      font-size: 16px;
+      display: inline-flex;
+      align-items: center;
+      flex-shrink: 0;
     }
   </style>
 </head>
 <body data-theme="{{ theme | default('dark') }}">
+<div class="star-trails-bg"></div>
 {% autoescape true %}
   {% set has_any = has_any_album if has_any_album is defined else (songs|selectattr('album')|list|length > 0) %}
   <header>
@@ -276,17 +363,19 @@
   </header>
   <main>
   {% for song in songs %}
-    <div class="hover-card">
+    <div class="hover-card{% if not song.accent %} no-accent{% endif %}"{% if song.accent %} style="--accent: {{ song.accent }};"{% endif %}>
       <div class="hover-card-bg">
         <div class="hover-card-glow">
-          {% if song.cover %}<img src="{{ song.cover }}" alt="" onerror="this.remove()">{% endif %}
+          {% if not song.accent and song.cover %}<img src="{{ song.cover }}" alt="" onerror="this.remove()">{% endif %}
         </div>
       </div>
       <div class="hover-card-body">
-        <span class="number">{{ loop.index }}</span>
+        <span class="number">{{ '%02d'|format(loop.index) }}</span>
         <div class="cover">
-          <span class="cover-placeholder">🎵</span>
-          {% if song.cover %}<img src="{{ song.cover }}" alt="" onerror="this.remove()">{% endif %}
+          <div class="cover-inner">
+            <span class="cover-placeholder">🎵</span>
+            {% if song.cover %}<img src="{{ song.cover }}" alt="" onerror="this.remove()">{% endif %}
+          </div>
         </div>
         <div class="info">
           <div class="title-row">
@@ -295,7 +384,7 @@
               {% if song.album %}
                 <span class="tag">{{ song.artist }}</span>
               {% else %}
-                <span class="tag tag-empty"></span>
+                <span class="tag tag-single">单曲</span>
               {% endif %}
             {% endif %}
           </div>
@@ -312,7 +401,11 @@
   {% endfor %}
   </main>
   <footer>
-    <span class="paw">🐾</span> 发送「点歌 序号」选歌，例如「点歌 1」
+    <span class="paw">
+      <svg viewBox="0 0 512 512" width="16" height="16" fill="currentColor" aria-hidden="true">
+        <path d="M256 224c-79.41 0-192 122.76-192 200.25 0 34.9 26.81 55.75 71.74 55.75 48.84 0 81.09-25.08 120.26-25.08 39.51 0 71.85 25.08 120.26 25.08 44.93 0 71.74-20.85 71.74-55.75C448 346.76 335.41 224 256 224zm-147.28-12.61c-10.4-34.65-42.44-57.09-71.56-50.13-29.12 6.96-44.29 40.69-33.89 75.34 10.4 34.65 42.44 57.09 71.56 50.13 29.12-6.96 44.29-40.69 33.89-75.34zm84.72-20.78c30.94-8.14 46.42-49.94 34.58-93.36s-46.52-72.01-77.46-63.87-46.42 49.94-34.58 93.36c11.84 43.42 46.53 72.02 77.46 63.87zm281.39-29.34c-29.12-6.96-61.15 15.48-71.56 50.13-10.4 34.65 4.77 68.38 33.89 75.34 29.12 6.96 61.15-15.48 71.56-50.13 10.4-34.65-4.77-68.38-33.89-75.34zm-156.27 29.34c30.94 8.14 65.62-20.45 77.46-63.87 11.84-43.42-3.64-85.21-34.58-93.36s-65.62 20.45-77.46 63.87c-11.84 43.42 3.64 85.22 34.58 93.36z"/>
+      </svg>
+    </span> 发送「点歌 序号」选歌，例如「点歌 1」
   </footer>
 {% endautoescape %}
 </body>
