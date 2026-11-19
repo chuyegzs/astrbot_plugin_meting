@@ -390,6 +390,16 @@ class MusicSender:
                         self.template_path.read_text, encoding="utf-8"
                     )
                 render_songs = songs[:12]
+                resolved_covers = await asyncio.gather(
+                    *(
+                        self.api_client.resolve_cover_url(s["cover"])
+                        for s in render_songs
+                    )
+                )
+                for song_item, resolved_cover in zip(
+                    render_songs, resolved_covers, strict=True
+                ):
+                    song_item["cover"] = resolved_cover
                 has_any_album = any(bool(s.get("album")) for s in render_songs)
                 theme_setting = self.cfg.get_image_theme(event).strip().lower()
                 if theme_setting in ("light", "亮色", "浅色"):

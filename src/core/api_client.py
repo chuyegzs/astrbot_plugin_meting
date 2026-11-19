@@ -3,7 +3,7 @@
 import time
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, urljoin, urlparse
 
 import aiohttp
 
@@ -158,7 +158,7 @@ class MetingApiClient:
             cover = f"{cover}{connector}picsize=320"
 
         song_url = force_https(song_meta["song_url"])
-        cover_url = force_https(cover) if cover else ""
+        cover_url = await self.resolve_cover_url(cover) if cover else ""
         jump_url = force_https(song_meta["jump_url"]) if song_meta["jump_url"] else ""
 
         sign_api = self.cfg.get_sign_api_url()
@@ -182,6 +182,53 @@ class MetingApiClient:
                     f"签名失败: {res_json.get('message', '未知错误')}"
                 )
             return res_json.get("data")
+
+    async def resolve_cover_url(self, cover_url: str) -> str:
+        """解析封面接口的 302 跳转并返回真实图床地址；若接口直接返回图片或探测失败则保留原地址。
+
+        Args:
+            cover_url: 原始封面地址。
+
+        Returns:
+            规范化后的真实封面 URL；输入为空时返回空字符串。
+        """
+        current_url = force_https(cover_url)
+        if not current_url:
+            return ""
+
+        session = self.ensure_session()
+        timeout = aiohttp.ClientTimeout(total=5)
+        try:
+            for _ in range(3):
+                location = ""
+                status = 0
+                async with session.head(
+                    current_url, allow_redirects=False, timeout=timeout
+                ) as resp:
+                    status = resp.status
+                    location = resp.headers.get("Location", "")
+
+                if status in (405, 501):
+                    async with session.get(
+                        current_url, allow_redirects=False, timeout=timeout
+                    ) as resp:
+                        status = resp.status
+                        location = resp.headers.get("Location", "")
+
+                if 300 <= status < 400 and location:
+                    next_url = force_https(urljoin(current_url, location))
+                    prev_host = urlparse(current_url).netloc.lower()
+                    next_host = urlparse(next_url).netloc.lower()
+                    current_url = next_url
+                    if next_host and next_host != prev_host:
+                        return current_url
+                    continue
+                break
+        except Exception as e:
+            logger.debug(
+                f"{LOG_PREFIX}[接口] 解析封面 302 跳转失败 ({cover_url})，保留原地址: {e}"
+            )
+        return current_url
 
     async def probe_song_ext(self, song_url: str) -> str:
         """发送 HEAD 请求跟踪重定向并嗅探音频真实扩展名（不下载正文）。
