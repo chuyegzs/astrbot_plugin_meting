@@ -411,7 +411,11 @@ class MusicSender:
                             "has_any_album": has_any_album,
                             "theme": theme,
                         },
-                        options={"quality": 100, "scale": "device"},
+                        options={
+                            "type": "png",
+                            "scale": "device",
+                            "device_scale_factor_level": "ultra",
+                        },
                     ),
                     timeout=15,
                 )
