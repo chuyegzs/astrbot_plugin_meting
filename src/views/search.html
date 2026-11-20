@@ -39,6 +39,7 @@
       --neutral-border: rgba(255, 240, 245, 0.24);
       --neutral-cover-border: rgba(255, 240, 245, 0.36);
       --neutral-glow-shadow: rgba(255, 240, 245, 0.08);
+      --neutral-glow-opacity: 0.45;
     }
     [data-theme="light"] {
       --bg-color: #f4f6fb;
@@ -68,6 +69,7 @@
       --neutral-border: rgba(25, 35, 80, 0.16);
       --neutral-cover-border: rgba(25, 35, 80, 0.24);
       --neutral-glow-shadow: rgba(25, 35, 80, 0.06);
+      --neutral-glow-opacity: 0.22;
     }
     body {
       width: 1120px;
@@ -194,7 +196,7 @@
     .hover-card.no-accent .hover-card-glow {
       background-color: transparent;
       overflow: hidden;
-      opacity: 0.5;
+      opacity: var(--neutral-glow-opacity);
       filter: blur(36px);
       -webkit-filter: blur(36px);
     }
@@ -285,7 +287,7 @@
     }
     .title-row {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
       gap: 10px;
     }
@@ -301,6 +303,8 @@
     }
     .tag {
       flex-shrink: 0;
+      align-self: flex-start;
+      margin-top: -10px;
       max-width: 138px;
       padding: 3px 11px;
       border-radius: 9999px;
