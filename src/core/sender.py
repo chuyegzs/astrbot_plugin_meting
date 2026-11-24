@@ -180,8 +180,11 @@ class MusicSender:
                     voice_meta["song_id"],
                     br=320,
                 )
+                bot_name = self.cfg.get_bot_name()
                 await event.send(
-                    event.plain_result("猫猫正在努力录制歌曲语音，请稍等一下下喵~ 🎙️")
+                    event.plain_result(
+                        f"{bot_name}正在努力录制歌曲语音，请稍等一下下喵~ 🎙️"
+                    )
                 )
                 await self.audio_service.split_and_send_audio(
                     event, temp_file, session_id, duration
@@ -191,7 +194,11 @@ class MusicSender:
                 raise
             except DownloadError as e:
                 logger.error(f"{LOG_PREFIX}[点歌] 歌曲下载失败: {e}")
-                await event.send(event.plain_result(f"猫猫下载歌曲失败惹qwq: {e}"))
+                await event.send(
+                    event.plain_result(
+                        f"{self.cfg.get_bot_name()}下载歌曲失败惹qwq: {e}"
+                    )
+                )
             except AudioFormatError as e:
                 logger.error(f"{LOG_PREFIX}[点歌] 音频格式校验未通过: {e}")
                 await event.send(event.plain_result(f"音频格式不支持诶qwq: {e}"))
@@ -339,14 +346,19 @@ class MusicSender:
         source = await self.session_mgr.get_session_source(session_id)
         results = await self.api_client.perform_search(keyword, source)
 
+        bot_name = self.cfg.get_bot_name()
         if results is None:
-            return event.plain_result("猫猫搜索歌曲时遇到网络小故障惹，请稍后再试qwq")
+            return event.plain_result(
+                f"{bot_name}搜索歌曲时遇到网络小故障惹，请稍后再试qwq"
+            )
 
         if not results:
-            return event.plain_result(f"猫猫没有找到与「{keyword}」相关的歌曲诶qwq")
+            return event.plain_result(
+                f"{bot_name}没有找到与「{keyword}」相关的歌曲诶qwq"
+            )
 
         source_label = SOURCE_DISPLAY.get(source, source)
-        message = f"🎵 猫猫为你找到的歌曲 ({source_label})\n"
+        message = f"🎵 {bot_name}为你找到的歌曲 ({source_label})\n"
         message += "━━━━━━━━━━━━━━\n"
         songs: list[dict[str, str]] = []
 
@@ -383,7 +395,9 @@ class MusicSender:
                 message += f"[{idx}] {name}  👤 {artist}\n"
 
         message += "━━━━━━━━━━━━━━\n"
-        message += '💡 小贴士：发送 "点歌 1" 就可以让猫猫放第一首歌啦喵~'
+        message += f'💡 小贴士：发送 "点歌 1" 就可以让{bot_name}放第一首歌啦喵~\n'
+        message += "━━━━━━━━━━━━━━\n"
+        message += "🐾 Powered by NanoRocky"
 
         if not self.cfg.get_render_search_result_as_image(event):
             msg_id = await self.send_search_result_msg(event, message)

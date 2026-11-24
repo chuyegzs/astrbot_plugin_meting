@@ -80,6 +80,18 @@ class PluginConfig:
             return default
         return value
 
+    def get_bot_name(self) -> str:
+        """获取配置中自定义的机器人称呼。
+
+        Returns:
+            去除了首尾空白的自定义称呼；未配置或留空时返回默认值 '猫猫'。
+        """
+        return self.get_value(
+            "bot_name",
+            "猫猫",
+            lambda x: isinstance(x, str) and bool(x.strip()),
+        ).strip()
+
     def _get_api_config(self) -> dict[str, Any]:
         """获取 API 配置分组字典。
 

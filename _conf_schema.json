@@ -1,4 +1,10 @@
 {
+  "bot_name": {
+    "description": "机器人自定义称呼",
+    "type": "string",
+    "hint": "回复消息与运行日志中机器人的自称，留空则默认使用「猫猫」",
+    "default": "猫猫"
+  },
   "api_config": {
     "description": "MetingAPI 配置",
     "type": "object",

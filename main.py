@@ -54,7 +54,9 @@ class MetingPlugin(Star):
 
     async def initialize(self) -> None:
         """AstrBot 框架加载插件时调用的异步初始化钩子。"""
-        logger.info(f"{LOG_PREFIX}[系统] 猫猫正在初始化点歌插件...")
+        logger.info(
+            f"{LOG_PREFIX}[系统] {self.cfg.get_bot_name()}正在初始化点歌插件..."
+        )
         self.api_client.ensure_session()
         await asyncio.to_thread(self.audio_service.clear_all_cache)
 
@@ -109,7 +111,7 @@ class MetingPlugin(Star):
         session_id = event.unified_msg_origin
         await self.session_mgr.set_session_source(session_id, source)
         return event.plain_result(
-            f"好耶！猫猫已将当前音源切换为「{source_name}」啦喵~ 🎵"
+            f"好耶！{self.cfg.get_bot_name()}已将当前音源切换为「{source_name}」啦喵~ 🎵"
         )
 
     async def _handle_specific_source_play(
@@ -125,6 +127,7 @@ class MetingPlugin(Star):
             source: 目标音源标识。
             prefixes: 触发该指令的命令前缀列表。
         """
+        bot_name = self.cfg.get_bot_name()
         kw = event.get_message_str().strip()
         for prefix in prefixes:
             if kw.startswith(prefix):
@@ -134,7 +137,7 @@ class MetingPlugin(Star):
         if not kw:
             await event.send(
                 event.plain_result(
-                    f"请告诉猫猫要点播的歌名喔喵~ 例如：{prefixes[0]} 坠落星空"
+                    f"请告诉{bot_name}要点播的歌名喔喵~ 例如：{prefixes[0]} 坠落星空"
                 )
             )
             return
@@ -142,12 +145,14 @@ class MetingPlugin(Star):
         results = await self.api_client.perform_search(kw, source)
         if results is None:
             await event.send(
-                event.plain_result("猫猫搜索歌曲时遇到网络小故障惹，请稍后再试qwq")
+                event.plain_result(
+                    f"{bot_name}搜索歌曲时遇到网络小故障惹，请稍后再试qwq"
+                )
             )
             return
         if not results:
             await event.send(
-                event.plain_result(f"猫猫没有找到与「{kw}」相关的歌曲诶qwq")
+                event.plain_result(f"{bot_name}没有找到与「{kw}」相关的歌曲诶qwq")
             )
             return
 
@@ -201,16 +206,17 @@ class MetingPlugin(Star):
             self.cfg.send_overrides.pop(uid, None)
             return event.plain_result("已恢复当前会话的音乐发送模式为全局默认设置啦喵~")
 
+        bot_name = self.cfg.get_bot_name()
         if mode in mode_map:
             val = mode_map[mode]
             self.cfg.send_overrides[uid] = val
             mode_name = {0: "音乐卡片", 1: "语音切片", 2: "文件发送"}[val]
             return event.plain_result(
-                f"好喔！猫猫已临时将当前会话的发送模式切换为：「{mode_name}」喵~"
+                f"好喔！{bot_name}已临时将当前会话的发送模式切换为：「{mode_name}」喵~"
             )
 
         return event.plain_result(
-            "猫猫不认识这个模式诶qwq! 可选模式：卡片、语音、文件、默认。"
+            f"{bot_name}不认识这个模式诶qwq! 可选模式：卡片、语音、文件、默认。"
         )
 
     @filter.command(
@@ -267,20 +273,21 @@ class MetingPlugin(Star):
                 "已恢复当前会话的搜歌结果展示方式为全局默认设置啦喵~"
             )
 
+        bot_name = self.cfg.get_bot_name()
         if clean_mode in ("图片", "图", "image", "img", "1"):
             self.cfg.search_display_overrides[uid] = True
             return event.plain_result(
-                "好喔！猫猫已将当前会话的搜歌结果展示方式切换为：「图片」喵~ 🖼️"
+                f"好喔！{bot_name}已将当前会话的搜歌结果展示方式切换为：「图片」喵~ 🖼️"
             )
 
         if clean_mode in ("文本", "文字", "text", "txt", "0"):
             self.cfg.search_display_overrides[uid] = False
             return event.plain_result(
-                "好喔！猫猫已将当前会话的搜歌结果展示方式切换为：「文本」喵~ 📝"
+                f"好喔！{bot_name}已将当前会话的搜歌结果展示方式切换为：「文本」喵~ 📝"
             )
 
         return event.plain_result(
-            "猫猫不认识这个展示方式诶qwq！可选方式：图片、文本、默认。"
+            f"{bot_name}不认识这个展示方式诶qwq！可选方式：图片、文本、默认。"
         )
 
     @filter.command(
@@ -322,9 +329,10 @@ class MetingPlugin(Star):
                     theme = message_str[len(prefix) :].strip()
                     break
 
+        bot_name = self.cfg.get_bot_name()
         if not theme:
             return event.plain_result(
-                "请告诉猫猫要切换的图片主题喵：浅色、深色、自动 或 默认(恢复)\n"
+                f"请告诉{bot_name}要切换的图片主题喵：浅色、深色、自动 或 默认(恢复)\n"
                 "示例：/切换搜歌主题 深色"
             )
 
@@ -337,23 +345,23 @@ class MetingPlugin(Star):
         if clean_theme in ("浅色", "亮色", "日间", "白天", "白", "light", "1"):
             self.cfg.image_theme_overrides[uid] = "light"
             return event.plain_result(
-                "好耶！猫猫已将当前会话的搜歌图片主题切换为：「浅色模式」啦喵~ ☀️"
+                f"好耶！{bot_name}已将当前会话的搜歌图片主题切换为：「浅色模式」啦喵~ ☀️"
             )
 
         if clean_theme in ("深色", "暗色", "夜间", "黑夜", "黑", "dark", "2"):
             self.cfg.image_theme_overrides[uid] = "dark"
             return event.plain_result(
-                "好耶！猫猫已将当前会话的搜歌图片主题切换为：「深色模式」啦喵~ 🌙"
+                f"好耶！{bot_name}已将当前会话的搜歌图片主题切换为：「深色模式」啦喵~ 🌙"
             )
 
         if clean_theme in ("自动", "时间自动", "auto", "0"):
             self.cfg.image_theme_overrides[uid] = "auto"
             return event.plain_result(
-                "好耶！猫猫已将当前会话的搜歌图片主题切换为：「时间自动」啦喵~ 🕒"
+                f"好耶！{bot_name}已将当前会话的搜歌图片主题切换为：「时间自动」啦喵~ 🕒"
             )
 
         return event.plain_result(
-            "猫猫不认识这个主题诶qwq！可选主题：浅色、深色、自动、默认。"
+            f"{bot_name}不认识这个主题诶qwq！可选主题：浅色、深色、自动、默认。"
         )
 
     @filter.command(
@@ -471,7 +479,7 @@ class MetingPlugin(Star):
         """展示插件支持的所有点歌与音源切换指令说明。"""
         event.stop_event()
         commands = [
-            "🐾 猫猫的 Meting 点歌指令指南 🎵",
+            f"🐾 {self.cfg.get_bot_name()}的 Meting 点歌指令指南 🎵",
             "========================",
             "【基础指令】",
             "• 搜歌 <歌名> - 搜索歌曲并展示列表",
@@ -511,9 +519,10 @@ class MetingPlugin(Star):
                 arg = arg[len(prefix) :].strip()
                 break
 
+        bot_name = self.cfg.get_bot_name()
         if not arg:
             return event.plain_result(
-                "请告诉猫猫要点播的歌曲序号或歌名喔喵~ 例如：点歌 1 或 点歌 坠落星空"
+                f"请告诉{bot_name}要点播的歌曲序号或歌名喔喵~ 例如：点歌 1 或 点歌 坠落星空"
             )
 
         unsigned_arg = arg[1:] if arg.startswith(("+", "-")) else arg
@@ -528,7 +537,7 @@ class MetingPlugin(Star):
             results = await self.session_mgr.get_session_results(session_id, sender_id)
             if not results:
                 return event.plain_result(
-                    '还没有搜索记录或已经过期啦，请先发送 "搜歌 歌名" 让猫猫找找歌叭~'
+                    f'还没有搜索记录或已经过期啦，请先发送 "搜歌 歌名" 让{bot_name}找找歌叭~'
                 )
 
             if index is None or index < 1 or index > len(results):
@@ -556,9 +565,11 @@ class MetingPlugin(Star):
         source = await self.session_mgr.get_session_source(session_id)
         results = await self.api_client.perform_search(arg, source)
         if results is None:
-            return event.plain_result("猫猫搜索歌曲时遇到网络小故障惹，请稍后再试qwq")
+            return event.plain_result(
+                f"{bot_name}搜索歌曲时遇到网络小故障惹，请稍后再试qwq"
+            )
         if not results:
-            return event.plain_result(f"猫猫没有找到与「{arg}」相关的歌曲诶qwq")
+            return event.plain_result(f"{bot_name}没有找到与「{arg}」相关的歌曲诶qwq")
 
         song = results[0]
         if "source" not in song:
@@ -580,7 +591,7 @@ class MetingPlugin(Star):
 
         if not keyword:
             return event.plain_result(
-                "请告诉猫猫要搜索的歌曲名称喔喵~ 例如：搜歌 坠落星空"
+                f"请告诉{self.cfg.get_bot_name()}要搜索的歌曲名称喔喵~ 例如：搜歌 坠落星空"
             )
 
         return await self.sender.handle_search(event, keyword)
@@ -626,7 +637,9 @@ class MetingPlugin(Star):
 
     async def terminate(self) -> None:
         """插件卸载或重载时释放网络连接、后台任务与临时文件。"""
-        logger.info(f"{LOG_PREFIX}[系统] 猫猫正在卸载并清理点歌插件资源...")
+        logger.info(
+            f"{LOG_PREFIX}[系统] {self.cfg.get_bot_name()}正在卸载并清理点歌插件资源..."
+        )
         if self._cleanup_task:
             self._cleanup_task.cancel()
             try:

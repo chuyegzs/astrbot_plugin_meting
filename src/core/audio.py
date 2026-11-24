@@ -605,7 +605,9 @@ class AudioService:
                             except Exception:
                                 pass
                         await event.send(
-                            event.plain_result("音频转换超时惹，猫猫唱不出来啦qwq")
+                            event.plain_result(
+                                f"音频转换超时惹，{self.cfg.get_bot_name()}唱不出来啦qwq"
+                            )
                         )
                         return
 
@@ -622,7 +624,9 @@ class AudioService:
                             except Exception:
                                 pass
                         await event.send(
-                            event.plain_result("音频转换失败惹，猫猫不会唱这首歌qwq")
+                            event.plain_result(
+                                f"音频转换失败惹，{self.cfg.get_bot_name()}不会唱这首歌qwq"
+                            )
                         )
                         return
 

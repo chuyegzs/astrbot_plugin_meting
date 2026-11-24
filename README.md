@@ -2,7 +2,7 @@
 # 初叶🍂 MetingAPI 点歌插件
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v1.1.5-blue?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/version-v1.1.6-blue?style=flat-square" alt="Version">
   <img src="https://img.shields.io/badge/AstrBot-≥4.17.6-green?style=flat-square" alt="AstrBot">
   <img src="https://img.shields.io/badge/license-AGPL-orange?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/python-3.10+-steelblue?style=flat-square" alt="Python">
@@ -18,8 +18,8 @@
 > [!WARNING]
 > **兼容性声明**
 > - 使用音乐卡片功能，AstrBot 版本须 ≥ `4.17.6`
-> - 遇到问题时请开启 **DEBUG 日志**，查看兼容性检查结果
-> - 提交 Issue 时请附带：插件日志、兼容性检查结果、AstrBot & 插件版本、消息平台框架
+> - 遇到问题时请开启 **DEBUG 日志**，查看插件运行日志
+> - 提交 Issue 时请附带：插件日志、AstrBot & 插件版本、消息平台框架
 
 <!-- omit in toc -->
 ## 📑 目录
@@ -31,12 +31,16 @@
   - [🔍 搜索歌曲](#-搜索歌曲)
   - [▶️ 播放歌曲](#️-播放歌曲)
   - [🔄 切换音源](#-切换音源)
+  - [🔄 切换模式与主题](#-切换模式与主题)
   - [🎨 音乐卡片](#-音乐卡片)
   - [🤖 LLM 调用](#-llm-调用)
 - [⚙️ 配置说明](#️-配置说明)
+  - [基础配置](#基础配置)
   - [API 配置](#api-配置)
   - [搜索配置](#搜索配置)
+  - [搜索数据展示设置](#搜索数据展示设置)
   - [音乐发送配置](#音乐发送配置)
+  - [音乐卡片配置](#音乐卡片配置)
   - [下载与缓存配置](#下载与缓存配置)
   - [语音分段配置](#语音分段配置)
 - [🔧 技术说明](#-技术说明)
@@ -106,7 +110,7 @@ pip install -r requirements.txt
 
 </details>
 
-> 💡 插件依赖 `aiohttp`、`imageio-ffmpeg`、`packaging`、`py-machineid`，WebUI 安装时会自动处理。
+> 💡 插件依赖 `aiohttp`、`imageio-ffmpeg`、`py-machineid`，WebUI 安装时会自动处理；封面主题取色可选复用 AstrBot 内置的 `Pillow`（缺失时自动降级为无色玻璃卡片）。
 
 ---
 
@@ -116,21 +120,21 @@ pip install -r requirements.txt
 
 | 指令 | 别名 | 说明 |
 |------|------|------|
-| `点歌指令` | `点歌帮助` `song help` | 查看所有指令 |
-| `搜歌 <歌名>` | `search` | 在当前音源搜索歌曲 |
-| `点歌 <序号>` | `play` | 播放搜索结果中的歌曲 |
-| `点歌 <歌名>` | `play` | 直接搜索并播放第一首 |
-| `网易点歌 <歌名>` | `netease play` | 网易云快捷点歌 |
-| `QQ点歌 <歌名>` | `tencent play` `qq play` | QQ 音乐快捷点歌 |
-| `酷狗点歌 <歌名>` | `kugou play` | 酷狗快捷点歌 |
-| `酷我点歌 <歌名>` | `kuwo play` | 酷我快捷点歌 |
-| `切换网易云` | `switch netease` | 切换会话默认音源为网易云 |
-| `切换QQ音乐` | `switch tencent` | 切换会话默认音源为 QQ 音乐 |
-| `切换酷狗` | `switch kugou` | 切换会话默认音源为酷狗 |
-| `切换酷我` | `switch kuwo` | 切换会话默认音源为酷我 |
-| `切换搜歌主题 <theme>` | `切换搜索主题` `切换主题` | 切换会话搜歌图片主题（浅色/深色/自动/默认） |
-| `切换搜歌展示 <mode>` | `切换搜索展示` `切换搜索模式` | 切换会话搜歌展示方式（图片/文本/默认，仅管理员） |
-| `切换发送模式 <mode>` | `switch meting mode` | 切换会话的发送模式（仅管理员） |
+| `点歌指令` | `点歌帮助` `点歌说明` `点歌指南` `点歌菜单` `song help` `meting help` | 查看所有指令 |
+| `搜歌 <歌名>` | `mting-search` `mting-search song` | 在当前音源搜索歌曲 |
+| `点歌 <序号>` | `mting-play` `mting-play song` | 播放搜索结果中的歌曲 |
+| `点歌 <歌名>` | `mting-play` `mting-play song` | 直接搜索并播放第一首 |
+| `网易点歌 <歌名>` | `网易云点歌` `netease play` `netease song` | 网易云快捷点歌 |
+| `QQ点歌 <歌名>` | `腾讯点歌` `QQ音乐点歌` `tencent play` `qq play` | QQ 音乐快捷点歌 |
+| `酷狗点歌 <歌名>` | `酷狗音乐点歌` `kugou play` | 酷狗快捷点歌 |
+| `酷我点歌 <歌名>` | `酷我音乐点歌` `kuwo play` | 酷我快捷点歌 |
+| `切换网易云` | `切换网易` `切换网易云音乐` `switch netease` | 切换会话默认音源为网易云 |
+| `切换QQ音乐` | `切换腾讯音乐` `switch tencent` `switch qqmusic` | 切换会话默认音源为 QQ 音乐 |
+| `切换酷狗` | `切换酷狗音乐` `switch kugou` | 切换会话默认音源为酷狗 |
+| `切换酷我` | `切换酷我音乐` `switch kuwo` | 切换会话默认音源为酷我 |
+| `切换搜歌主题 <theme>` | `mting-切换搜索主题` `mting-切换图片主题` `mting-切换主题` `mting-switch theme` | 切换会话搜歌图片主题（浅色/深色/自动/默认） |
+| `切换搜歌展示 <mode>` | `切换搜歌模式` `mting-切换搜索展示` `mting-切换搜索模式` `mting-switch search mode` | 切换会话搜歌展示方式（图片/文本/默认，仅管理员） |
+| `切换发送模式 <mode>` | `切换点歌模式` `switch meting mode` | 切换会话的发送模式（仅管理员） |
 
 ### 🔍 搜索歌曲
 
@@ -236,6 +240,12 @@ QQ点歌 坠落星空
 
 ## ⚙️ 配置说明
 
+### 基础配置
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `bot_name` | 字符串 | `猫猫` | 回复消息与运行日志中机器人的自称（如 `猫猫`、`小助手`、`我`），留空则默认使用「猫猫」 |
+
 ### API 配置
 
 | 配置项 | 类型 | 默认值 | 说明 |
@@ -278,7 +288,8 @@ QQ点歌 坠落星空
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
 | `send_as_music` | 整数 | `0` | `0`=音乐卡片，`1`=语音切片，`2`=文件发送 |
-| `send_if_not_supported` | 整数 | `2` | 非 QQ 平台备选发送方式 |
+| `send_if_not_supported` | 整数 | `2` | 仅在 `send_as_music=0` 且非 QQ 平台时生效：`0`=不发送，`1`=语音切片，`2`=文件发送 |
+| `send_music_info` | 整数 | `999` | 音质码率设置（范围 `-1`~`2147483`）：`999`=无损，`-1`=不限制（语音切片模式固定使用 `320` 节省带宽） |
 
 ### 音乐卡片配置
 
@@ -291,9 +302,9 @@ QQ点歌 坠落星空
 | 配置项 | 类型 | 默认值 | 范围 | 说明 |
 |--------|------|--------|------|------|
 | `max_file_size` | 整数 | `80` | 10~200 MB | 最大下载文件大小 |
-| `enable_cache` | 布尔 | `false` | — | 启用缓存可减少带宽 |
-| `max_cache_size` | 整数 | `1` | 1~32 GB | 最大缓存占用 |
-| `daily_cleanup_time` | 字符串 | `04:30` | HH:MM | 每日定时清理时间 |
+| `enable_cache` | 布尔 | `false` | — | 开启后缓存语音切片模式下载的原音频，减少重复下载与带宽占用 |
+| `max_cache_size` | 整数 | `1` | 1~32 GB | 最大缓存占用；超出后自动按修改时间从旧到新清理至上限的 50% |
+| `daily_cleanup_time` | 字符串 | `04:30` | HH:MM | 每日定时清理缓存时间（插件每次启动时也会清空缓存） |
 
 ### 语音分段配置
 
@@ -330,12 +341,14 @@ QQ点歌 坠落星空
 
 ### 数据存储
 
-| 数据 | 存储位置 | 生命周期 |
-|------|----------|----------|
-| 会话音源 | 内存 | 重启重置 |
-| 搜索结果 | 内存 | 过期自动清除 |
-| 下载音频 | 系统临时目录 | 播放后自动删除 |
-| 缓存文件 | `%TEMP%/astrbot_meting_cache/` | 每日定时清理 |
+> 临时目录与缓存目录统一位于 Python 系统临时目录（`tempfile.gettempdir()`）下的插件专属子目录 `meting_nano` 中，不污染宿主或 AstrBot 数据目录。
+
+| 数据 | 存储位置 | 生命周期与清理策略 |
+|------|----------|--------------------|
+| 会话音源 | 内存 | 重启/重载插件后重置（过期会话清理时保留已自定义的音源） |
+| 搜歌结果 / LLM 搜索缓存 | 内存 | 搜歌结果按 `search_result_expiration_time`（默认 `120s`）过期清除；LLM 搜索结果 `60s` 后过期清除 |
+| 临时音频（未开缓存的下载原音频 / 转码 WAV / 语音切片） | Windows：`%TEMP%\meting_nano\`<br>Linux / macOS：`/tmp/meting_nano/` | 播放结束后立即删除；异常残留文件超过 5 分钟后由后台任务自动清理；卸载插件时一并清理 |
+| 音频缓存文件（仅在开启 `enable_cache` 且走语音切片模式时产生） | Windows：`%TEMP%\meting_nano\astrbot_meting_cache\`<br>Linux / macOS：`/tmp/meting_nano/astrbot_meting_cache/` | ① 插件启动与卸载时清空<br>② 到达 `daily_cleanup_time`（默认 `04:30`）时每日清空<br>③ 占用超过 `max_cache_size`（默认 `1GB`）时按最旧优先清理至上限的 50%（正在播放中的文件受引用计数保护，不会被误删） |
 
 ---
 
@@ -353,7 +366,7 @@ QQ点歌 坠落星空
 
 1. 确认 AstrBot 版本 ≥ `4.17.6`
 2. 检查 `api_sign_url` 签名服务是否可用
-3. 查看 DEBUG 日志中的兼容性检查结果
+3. 确认当前消息平台为受支持的 QQ 协议端（如 NapCat / LLOneBot / Lagrange / aiocqhttp 等），并查看 DEBUG 日志中的卡片签名与发送记录
 
 </details>
 
@@ -369,7 +382,7 @@ QQ点歌 坠落星空
 <details>
 <summary><b>Q: 播放歌曲提示音频处理组件依赖加载失败</b></summary>
 
-请重新安装插件依赖（会自动安装内置 FFmpeg 的 `imageio-ffmpeg`）：
+请重新安装插件依赖（会自动安装内置 FFmpeg 的 `imageio-ffmpeg`），或在系统中安装 `ffmpeg` 并确保其位于 `PATH` 环境变量中：
 ```bash
 pip install -r requirements.txt
 ```
@@ -434,6 +447,6 @@ astrbot_plugin_meting/
 <br>
 
 <p align="center">
-  <sub>如有问题或建议，欢迎加入反馈 QQ 群：<b>535563643</b>（必点 ⭐Star）</sub>
+  <sub>如有问题或建议，欢迎加入反馈 QQ 群：<b>535563643</b></sub>
 </p>
 
