@@ -1,4 +1,10 @@
 {
+  "bot_name": {
+    "description": "机器人自定义称呼",
+    "type": "string",
+    "hint": "回复消息与运行日志中机器人的自称，留空则默认使用「猫猫」",
+    "default": "猫猫"
+  },
   "api_config": {
     "description": "MetingAPI 配置",
     "type": "object",
@@ -28,7 +34,7 @@
       "custom_api_url": {
         "description": "自定义 API 地址",
         "type": "string",
-        "hint": "[仅在 API 地址为 custom 时生效]\n不带 /api 的后缀, 例如： https://api.example.com/meting/, \n[请注意 URL 完整性, 以 '/' 结尾]"
+        "hint": "[仅在 API 地址为 custom 时生效]\n不带 /api 的后缀, 例如： https://api.example.com/meting/\n[请注意 URL 完整性, 以 '/' 结尾]"
       },
       "custom_api_template": {
         "description": "自定义 API 模板",
@@ -79,10 +85,39 @@
       "search_result_count": {
         "description": "搜索结果显示数量",
         "type": "int",
-        "hint": "搜索结果显示的歌曲数量, 范围: 3-30",
-        "default": 9,
+        "hint": "搜索结果显示的歌曲数量, 范围: 3-30 (图片模式最多展示 12 首)",
+        "default": 8,
         "minimum": 3,
         "maximum": 30
+      }
+    }
+  },
+  "search_display_config": {
+    "description": "搜索数据展示设置",
+    "type": "object",
+    "hint": "搜索结果展示与主题相关设置",
+    "items": {
+      "render_search_result_as_image": {
+        "description": "使用图片展示搜索结果",
+        "type": "bool",
+        "hint": "是否优先使用卡片图片展示搜歌结果，禁用时直接以文本形式发送。默认开启。",
+        "default": true
+      },
+      "image_theme": {
+        "description": "图片主题色",
+        "type": "string",
+        "hint": "搜索结果图片的主题色风格：auto（时间自动：05:59 - 18:59 为浅色，其余时间为深色）、light（浅色）、dark（深色）",
+        "options": [
+          "auto",
+          "light",
+          "dark"
+        ],
+        "labels": [
+          "时间自动",
+          "亮色",
+          "暗色"
+        ],
+        "default": "auto"
       }
     }
   },
@@ -94,7 +129,7 @@
       "send_as_music": {
         "description": "音乐发送方式",
         "type": "int",
-        "hint": "0: 音乐卡片 [默认], 1: 语音切片, 2: 文件发送, \n[注意: LLM 不遵循此开关, 它强制使用音乐卡片]",
+        "hint": "0: 音乐卡片 [默认], 1: 语音切片, 2: 文件发送, \n[注意: LLM 不遵循此开关, 它会根据环境优先使用音乐卡片或回退文件发送]",
         "default": 0,
         "minimum": 0,
         "maximum": 2
@@ -110,7 +145,7 @@
       "send_music_info": {
         "description": "音质设置",
         "type": "int",
-        "hint": "设置音乐的音质, 取决于所选 API 的支持情况。\n默认 999 代表 无损 音质, 当设为 -1 时则不限制音质。\n不同的 API 可能有不同的音质选项，请根据实际情况调整。\n数值越大, 音质越好, 但文件也越大, 下载和发送可能需要更多时间。",
+        "hint": "设置音乐的音质, 取决于所选 API 的支持情况。\n默认 999 代表 无损 音质, 当设为 -1 时则不限制音质。\n不同的 API 可能有不同的音质选项，请根据实际情况调整。\n数值越大, 音质越好, 但文件也越大, 下载和发送可能需要更多时间。\n[注：语音切片模式固定使用 320 音质以节省带宽]",
         "default": 999,
         "minimum": -1,
         "maximum": 2147483
@@ -186,13 +221,6 @@
         "minimum": 0,
         "maximum": 10
       }
-    }
-  },
-  "music_file_send_config": {
-    "description": "音乐文件发送配置",
-    "type": "object",
-    "hint": "歌曲文件发送相关设置",
-    "items": {
     }
   }
 }
