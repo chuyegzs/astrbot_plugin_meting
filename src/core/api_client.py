@@ -97,6 +97,9 @@ class MetingApiClient:
                 logger.info(f"{LOG_PREFIX}[接口] 自定义 API 搜歌: url={api_endpoint}")
                 async with session.get(api_endpoint) as resp:
                     if resp.status != 200:
+                        logger.warning(
+                            f"{LOG_PREFIX}[接口] 搜歌接口返回异常状态码: status={resp.status}, url={resp.url}, source={source}, keyword={keyword}"
+                        )
                         return None
                     # 仅接受返回标准 JSON 格式数据 (application/json)
                     data = await resp.json()
@@ -122,19 +125,28 @@ class MetingApiClient:
 
                 async with session.get(api_endpoint, params=params) as resp:
                     if resp.status != 200:
+                        logger.warning(
+                            f"{LOG_PREFIX}[接口] 搜歌接口返回异常状态码: status={resp.status}, url={resp.url}, source={source}, keyword={keyword}"
+                        )
                         return None
                     # 仅接受返回标准 JSON 格式数据 (application/json)
                     data = await resp.json()
 
-            if not isinstance(data, list) or not data:
+            if not isinstance(data, list):
+                logger.warning(
+                    f"{LOG_PREFIX}[接口] 搜歌接口返回非列表数据: type={type(data).__name__}, source={source}, keyword={keyword}"
+                )
+                return []
+            if not data:
                 return []
 
             result_count = self.cfg.get_search_result_count()
             return data[:result_count]
 
         except Exception as e:
+            err_desc = f"{type(e).__name__}: {e}" if str(e) else type(e).__name__
             logger.error(
-                f"{LOG_PREFIX}[接口] 搜索歌曲时发生异常 (source={source}, keyword={keyword}): {e}",
+                f"{LOG_PREFIX}[接口] 搜索歌曲时发生异常 (source={source}, keyword={keyword}): {err_desc}",
                 exc_info=True,
             )
             return None
@@ -181,13 +193,15 @@ class MetingApiClient:
 
         async with session.get(sign_api, params=params) as resp:
             if resp.status != 200:
-                raise MetingPluginError(f"签名接口状态码异常: {resp.status}")
+                raise MetingPluginError(
+                    f"签名接口 ({sign_api}) 状态码异常: {resp.status}"
+                )
 
             # 仅接受返回标准 JSON 格式数据 (application/json)
             res_json = await resp.json()
             if res_json.get("code") != 1:
                 raise MetingPluginError(
-                    f"签名失败: {res_json.get('message', '未知错误')}"
+                    f"签名失败 (code={res_json.get('code')}): {res_json.get('message', '未知错误')}"
                 )
             return res_json.get("data")
 
@@ -233,8 +247,9 @@ class MetingApiClient:
                     continue
                 break
         except Exception as e:
+            err_desc = str(e) or type(e).__name__
             logger.debug(
-                f"{LOG_PREFIX}[接口] 解析封面 302 跳转失败 ({cover_url})，保留原地址: {e}"
+                f"{LOG_PREFIX}[接口] 解析封面 302 跳转失败 ({cover_url})，保留原地址: {err_desc}"
             )
         return current_url
 
@@ -356,8 +371,9 @@ class MetingApiClient:
             accent = await asyncio.to_thread(_compute)
             return current_url, accent
         except Exception as e:
+            err_desc = str(e) or type(e).__name__
             logger.debug(
-                f"{LOG_PREFIX}[接口] 解析封面或提取主题色失败 ({cover_url}): {e}"
+                f"{LOG_PREFIX}[接口] 解析封面或提取主题色失败 ({cover_url}): {err_desc}"
             )
             return current_url, ""
 
@@ -383,8 +399,9 @@ class MetingApiClient:
                     return url_ext
                 raise MetingPluginError(f"HEAD 请求状态码异常: {resp.status}")
         except Exception as e:
+            err_desc = str(e) or type(e).__name__
             logger.warning(
-                f"{LOG_PREFIX}[接口] HEAD 后缀探测失败 ({song_url})，回退到路径解析: {e}"
+                f"{LOG_PREFIX}[接口] HEAD 后缀探测失败 ({song_url})，回退到路径解析: {err_desc}"
             )
             parsed = urlparse(song_url).path
             ext = Path(parsed).suffix.lower()

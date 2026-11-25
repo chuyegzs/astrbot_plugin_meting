@@ -56,20 +56,95 @@ class AudioService:
         self.cfg = cfg
         self.api_client = api_client
         self.session_mgr = session_mgr
-        try:
-            self.ffmpeg_path: str = ffmpeg.get_ffmpeg_exe()
-        except Exception as e:
-            self.ffmpeg_path = shutil.which("ffmpeg") or ""
-            if not self.ffmpeg_path:
-                logger.warning(
-                    f"{LOG_PREFIX}[音频] 未找到可用的 FFmpeg 可执行文件，语音切片功能将不可用: {e}"
-                )
+        self.ffmpeg_path: str = ""
+        self._resolve_ffmpeg_path()
         self.download_semaphore = asyncio.Semaphore(3)
         self.temp_dir = Path(tempfile.gettempdir()) / TEMP_DIR_NAME
         self.temp_dir.mkdir(parents=True, exist_ok=True)
         self.cache_dir = self.temp_dir / CACHE_DIR_NAME
         self._file_lock = threading.Lock()
         self._active_files: dict[str, int] = {}
+
+    def _resolve_ffmpeg_path(self) -> str:
+        """解析并校验可用的 FFmpeg 可执行文件路径。
+
+        优先复用已缓存且实际存在的路径；若路径已失效（如运行期间热更新
+        ``imageio-ffmpeg`` 导致旧版内置二进制被删除，或环境变量指向无效路径），
+        会自动重新扫描 ``imageio-ffmpeg`` 内置目录及系统 ``PATH``。
+
+        Returns:
+            可用的 FFmpeg 可执行文件路径；未找到时返回空字符串。
+        """
+        current = self.ffmpeg_path
+        if current and Path(current).is_file():
+            return current
+
+        candidates: list[str] = []
+        try:
+            exe = ffmpeg.get_ffmpeg_exe()
+            if exe:
+                candidates.append(exe)
+        except Exception as e:
+            logger.debug(
+                f"{LOG_PREFIX}[音频] imageio_ffmpeg.get_ffmpeg_exe() 获取失败: {e}"
+            )
+
+        # 热升级 imageio-ffmpeg 后，已加载模块的缓存仍可能指向旧版文件名；
+        # 直接扫描 binaries 目录可在不重启进程的情况下定位新版二进制。
+        try:
+            pkg_file = getattr(ffmpeg, "__file__", None)
+            if pkg_file:
+                binaries_dir = Path(pkg_file).resolve().parent / "binaries"
+                if binaries_dir.is_dir():
+                    for item in sorted(binaries_dir.iterdir(), reverse=True):
+                        if not item.is_file() or not item.name.lower().startswith(
+                            "ffmpeg"
+                        ):
+                            continue
+                        if os.name == "nt":
+                            if item.suffix.lower() != ".exe":
+                                continue
+                        elif item.suffix.lower() in {
+                            ".py",
+                            ".pyc",
+                            ".md",
+                            ".txt",
+                        } or not os.access(item, os.X_OK):
+                            continue
+                        candidates.append(str(item))
+        except Exception as e:
+            logger.debug(
+                f"{LOG_PREFIX}[音频] 扫描 imageio_ffmpeg/binaries 目录失败: {e}"
+            )
+
+        system_ffmpeg = shutil.which("ffmpeg")
+        if system_ffmpeg:
+            candidates.append(system_ffmpeg)
+
+        for candidate in candidates:
+            resolved = (
+                candidate
+                if Path(candidate).is_file()
+                else (shutil.which(candidate) or "")
+            )
+            if resolved and Path(resolved).is_file():
+                self.ffmpeg_path = resolved
+                if current and current != resolved:
+                    logger.info(
+                        f"{LOG_PREFIX}[音频] FFmpeg 原路径已失效 ({current})，已自动重新定位: {resolved}"
+                    )
+                return resolved
+
+        self.ffmpeg_path = ""
+        if current:
+            logger.warning(
+                f"{LOG_PREFIX}[音频] FFmpeg 原路径已失效 ({current}) 且未找到可用替代，请重启 AstrBot 或安装 ffmpeg"
+            )
+        else:
+            logger.warning(
+                f"{LOG_PREFIX}[音频] 未找到可用的 FFmpeg 可执行文件，语音切片功能将不可用，请检查 imageio-ffmpeg 依赖或系统 PATH"
+            )
+        return ""
 
     def _norm_path_key(self, filepath: str | Path) -> str:
         """生成跨平台规范化的文件路径锁键名。
@@ -259,16 +334,29 @@ class AudioService:
 
         Returns:
             音频时长（秒）；若非有效音频或探测超时则返回 None。
+
+        Raises:
+            DownloadError: 找不到或无法启动 FFmpeg 可执行文件时抛出。
         """
-        if not self.ffmpeg_path:
-            return None
-        process = await asyncio.create_subprocess_exec(
-            self.ffmpeg_path,
-            "-i",
-            file_path,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
+        ffmpeg_path = await asyncio.to_thread(self._resolve_ffmpeg_path)
+        if not ffmpeg_path:
+            raise DownloadError("未找到可用的 FFmpeg 组件，无法处理语音切片")
+        try:
+            process = await asyncio.create_subprocess_exec(
+                ffmpeg_path,
+                "-i",
+                file_path,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        except FileNotFoundError as e:
+            self.ffmpeg_path = ""
+            logger.error(
+                f"{LOG_PREFIX}[音频] 启动 FFmpeg 探测音频失败，找不到可执行文件 ({ffmpeg_path}): {e}"
+            )
+            raise DownloadError(
+                f"无法启动 FFmpeg 组件 ({ffmpeg_path})，请检查依赖或重启 AstrBot"
+            ) from e
         try:
             stderr = await self._run_ffmpeg(process, FFMPEG_INFO_TIMEOUT)
         except asyncio.TimeoutError:
@@ -280,6 +368,10 @@ class AudioService:
         if match:
             hours, minutes, seconds = map(float, match.groups())
             return hours * 3600 + minutes * 60 + seconds
+        err_tail = " | ".join(output.strip().splitlines()[-3:])[-300:]
+        logger.warning(
+            f"{LOG_PREFIX}[音频] FFmpeg 未能解析出音频时长 (path={file_path}, code={process.returncode}): {err_tail or '无错误输出'}"
+        )
         return None
 
     async def download_song(
@@ -306,7 +398,7 @@ class AudioService:
             DownloadError: 网络请求或文件写入失败时抛出。
             AudioFormatError: 响应类型或文件非有效音频时抛出。
         """
-        if not self.ffmpeg_path:
+        if not await asyncio.to_thread(self._resolve_ffmpeg_path):
             raise DownloadError("未找到可用的 FFmpeg 组件，无法处理语音切片")
 
         url = force_https(url)
@@ -383,10 +475,16 @@ class AudioService:
                                 raise aiohttp.ClientError(
                                     f"上游服务器错误，状态码: {resp.status}"
                                 )
+                            logger.warning(
+                                f"{LOG_PREFIX}[音频] 下载音频返回异常状态码: status={resp.status}, url={resp.url}"
+                            )
                             raise DownloadError(f"下载失败，状态码: {resp.status}")
 
                         content_type = resp.headers.get("Content-Type", "")
                         if not is_audio_content(content_type):
+                            logger.warning(
+                                f"{LOG_PREFIX}[音频] 下载响应非音频类型: content_type={content_type!r}, url={resp.url}"
+                            )
                             raise AudioFormatError(
                                 f"不支持的 Content-Type: {content_type}"
                             )
@@ -504,9 +602,13 @@ class AudioService:
 
             except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                 retry_count += 1
-                err_msg = "请求超时" if isinstance(e, asyncio.TimeoutError) else str(e)
+                err_msg = (
+                    "请求超时"
+                    if isinstance(e, asyncio.TimeoutError)
+                    else (str(e) or type(e).__name__)
+                )
                 logger.error(
-                    f"{LOG_PREFIX}[音频] 下载网络异常 (第 {retry_count}/{max_retries} 次): {err_msg}"
+                    f"{LOG_PREFIX}[音频] 下载网络异常 (第 {retry_count}/{max_retries} 次, url={url}): {err_msg}"
                 )
                 if retry_count >= max_retries:
                     raise DownloadError(f"网络请求错误: {err_msg}") from e
@@ -514,16 +616,20 @@ class AudioService:
             except (DownloadError, AudioFormatError, asyncio.CancelledError):
                 raise
             except Exception as e:
+                err_desc = f"{type(e).__name__}: {e}" if str(e) else type(e).__name__
                 logger.error(
-                    f"{LOG_PREFIX}[音频] 下载歌曲发生未知异常: {e}",
+                    f"{LOG_PREFIX}[音频] 下载歌曲发生未知异常 (url={url}): {err_desc}",
                     exc_info=True,
                 )
-                raise DownloadError(f"下载失败: {e}") from e
+                raise DownloadError(f"下载失败: {err_desc}") from e
             finally:
                 if not download_success and temp_file:
                     self.release_file(temp_file)
                     try:
                         await asyncio.to_thread(Path(temp_file).unlink, missing_ok=True)
+                        logger.debug(
+                            f"{LOG_PREFIX}[音频] 下载或校验未完成，已自动清理临时文件: {temp_file}"
+                        )
                     except Exception:
                         pass
                     temp_file = None
@@ -551,7 +657,8 @@ class AudioService:
             temp_files_to_cleanup.append(temp_file)
 
         try:
-            if not self.ffmpeg_path:
+            ffmpeg_path = await asyncio.to_thread(self._resolve_ffmpeg_path)
+            if not ffmpeg_path:
                 logger.error(f"{LOG_PREFIX}[音频] 未找到可用的 FFmpeg 可执行文件")
                 await event.send(
                     event.plain_result(
@@ -579,7 +686,7 @@ class AudioService:
                     temp_files_to_cleanup.append(processed_file)
 
                     process = await asyncio.create_subprocess_exec(
-                        self.ffmpeg_path,
+                        ffmpeg_path,
                         "-i",
                         temp_file,
                         "-y",
@@ -592,10 +699,12 @@ class AudioService:
                         stderr=asyncio.subprocess.PIPE,
                     )
                     try:
-                        await self._run_ffmpeg(process, FFMPEG_CONVERT_TIMEOUT)
+                        convert_stderr = await self._run_ffmpeg(
+                            process, FFMPEG_CONVERT_TIMEOUT
+                        )
                     except asyncio.TimeoutError:
                         logger.error(
-                            f"{LOG_PREFIX}[音频] 音频转码超时，正在清理源文件: {temp_file}"
+                            f"{LOG_PREFIX}[音频] 音频转码超时 ({FFMPEG_CONVERT_TIMEOUT}s)，正在清理源文件: {temp_file}"
                         )
                         if temp_file and self.get_file_ref_count(temp_file) <= 1:
                             try:
@@ -613,8 +722,12 @@ class AudioService:
 
                     processed_exists = await asyncio.to_thread(processed_path.exists)
                     if process.returncode != 0 or not processed_exists:
+                        stderr_text = convert_stderr.decode("utf-8", errors="ignore")
+                        err_tail = " | ".join(stderr_text.strip().splitlines()[-3:])[
+                            -300:
+                        ]
                         logger.error(
-                            f"{LOG_PREFIX}[音频] 音频转码失败 (code={process.returncode})，正在清理损坏文件: {temp_file}"
+                            f"{LOG_PREFIX}[音频] 音频转码失败 (code={process.returncode}, exists={processed_exists}, src={temp_file}): {err_tail or '无错误输出'}"
                         )
                         if temp_file and self.get_file_ref_count(temp_file) <= 1:
                             try:
@@ -665,7 +778,7 @@ class AudioService:
                         temp_files_to_cleanup.append(segment_file)
 
                         process = await asyncio.create_subprocess_exec(
-                            self.ffmpeg_path,
+                            ffmpeg_path,
                             "-ss",
                             str(start_time),
                             "-t",
@@ -680,17 +793,27 @@ class AudioService:
                             stderr=asyncio.subprocess.PIPE,
                         )
                         try:
-                            await self._run_ffmpeg(process, FFMPEG_CONVERT_TIMEOUT)
+                            seg_stderr = await self._run_ffmpeg(
+                                process, FFMPEG_CONVERT_TIMEOUT
+                            )
                         except asyncio.TimeoutError:
                             logger.warning(
-                                f"{LOG_PREFIX}[音频] 切片提取超时: start={start_time}s, duration={current_duration}s"
+                                f"{LOG_PREFIX}[音频] 切片提取超时 ({FFMPEG_CONVERT_TIMEOUT}s): start={start_time}s, duration={current_duration}s"
                             )
                             if is_final_segment:
                                 break
                             start_time += segment_duration
                             continue
 
-                        if not await asyncio.to_thread(segment_path.exists):
+                        segment_exists = await asyncio.to_thread(segment_path.exists)
+                        if process.returncode != 0 or not segment_exists:
+                            seg_err_text = seg_stderr.decode("utf-8", errors="ignore")
+                            seg_err_tail = " | ".join(
+                                seg_err_text.strip().splitlines()[-3:]
+                            )[-300:]
+                            logger.error(
+                                f"{LOG_PREFIX}[音频] 语音切片提取失败 (start={start_time}s, duration={current_duration}s, code={process.returncode}, exists={segment_exists}): {seg_err_tail or '无错误输出'}"
+                            )
                             if is_final_segment:
                                 break
                             start_time += segment_duration
@@ -705,7 +828,14 @@ class AudioService:
                             await asyncio.sleep(send_interval)
                             success_count += 1
                         except Exception as e:
-                            logger.error(f"{LOG_PREFIX}[音频] 发送语音切片失败: {e}")
+                            err_desc = (
+                                f"{type(e).__name__}: {e}"
+                                if str(e)
+                                else type(e).__name__
+                            )
+                            logger.error(
+                                f"{LOG_PREFIX}[音频] 发送语音切片失败 (start={start_time}s, path={segment_file}): {err_desc}"
+                            )
                             await event.send(
                                 event.plain_result("发送语音片段时出现了一点小故障qwq")
                             )
@@ -732,6 +862,16 @@ class AudioService:
                 except asyncio.CancelledError:
                     logger.info(f"{LOG_PREFIX}[音频] 语音切片发送任务已取消")
                     raise
+                except FileNotFoundError as e:
+                    self.ffmpeg_path = ""
+                    logger.error(
+                        f"{LOG_PREFIX}[音频] 启动 FFmpeg 失败，找不到可执行文件 ({ffmpeg_path}): {e}"
+                    )
+                    await event.send(
+                        event.plain_result(
+                            "音频处理组件路径已失效惹qwq，请检查插件依赖或重启 AstrBot 喵！"
+                        )
+                    )
                 except Exception as e:
                     logger.error(
                         f"{LOG_PREFIX}[音频] 分割音频时发生异常: {e}",
