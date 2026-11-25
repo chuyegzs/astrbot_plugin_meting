@@ -1,5 +1,12 @@
 # 更新日志
 
+## 1.1.7 (2026-11-25)
+### 功能改进
+- **完善全链路诊断日志**：补齐搜歌接口非 200 状态码/非列表响应、FFmpeg 探测/转码/切片失败时的 stderr 摘要、语音与文件发送起止信息、音频下载失败后的自动清理记录，并修复超时等空异常信息导致日志留白的问题。
+### 问题修复
+- **尝试修复 FFmpeg 路径失效导致语音发送失败的问题（ [#39](https://github.com/chuyegzs/astrbot_plugin_meting/issues/39)）**：调用 FFmpeg 前实时校验缓存路径是否存在；当热更新 `imageio-ffmpeg` 替换内置二进制或 `IMAGEIO_FFMPEG_EXE` 指向无效路径时，自动重新扫描 `imageio_ffmpeg/binaries` 目录并兜底回退系统 `PATH` 中的 `ffmpeg`，无需重启 AstrBot 即可恢复。
+- **明确 FFmpeg 启动异常日志**：探测与转码阶段捕获 `FileNotFoundError` 时明确记录失效的 FFmpeg 路径并提示异常，避免在 Windows 下被误判为音频文件丢失。
+
 ## 1.1.6 (2026-11-24)
 ### 新增功能
 - **搜歌结果图片渲染**：新增基于 AstrBot T2I 的搜歌图片列表渲染（来自 PR [#35](https://github.com/chuyegzs/astrbot_plugin_meting/pull/35)，感谢 [@DreamGallery](https://github.com/DreamGallery)），最多展示 12 首、失败自动回退纯文本，并重制了卡片视觉，支持自动提取封面主色调渲染氛围光晕与装饰元素（无彩色或取色失败时自动切换中性配色）

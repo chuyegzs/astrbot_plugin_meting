@@ -104,6 +104,8 @@ class MusicSender:
         )
         ext = await self.api_client.probe_song_ext(song_url)
         file_name = f"{safe_name}{ext}"
+        logger.info(f"{LOG_PREFIX}[点歌] 正在发送音乐文件: {file_name}")
+        logger.debug(f"{LOG_PREFIX}[点歌] 音乐文件直链: {song_url}")
         await event.send(event.chain_result([File(name=file_name, url=song_url)]))
 
     async def play_song(
@@ -128,6 +130,9 @@ class MusicSender:
         )
 
         if not song_meta["raw_url"]:
+            logger.warning(
+                f"{LOG_PREFIX}[点歌] 歌曲缺少播放地址，无法发送: 《{song_meta['title']}》- {song_meta['artist']} (source={song_meta['source']})"
+            )
             await event.send(
                 event.plain_result("获取歌曲播放地址失败惹，换一首试试叭qwq")
             )
@@ -155,7 +160,14 @@ class MusicSender:
                 await self.send_music_card(event, song_meta)
                 return
             except Exception as card_err:
-                logger.error(f"{LOG_PREFIX}[点歌] 音乐卡片发送失败: {card_err}")
+                err_desc = (
+                    f"{type(card_err).__name__}: {card_err}"
+                    if str(card_err)
+                    else type(card_err).__name__
+                )
+                logger.error(
+                    f"{LOG_PREFIX}[点歌] 音乐卡片发送失败 (《{song_meta['title']}》- {song_meta['artist']}): {err_desc}"
+                )
                 if force_card or fallback_val == 0:
                     await event.send(
                         event.plain_result("制作或发送音乐卡片时出错惹qwq")
@@ -170,6 +182,9 @@ class MusicSender:
         if send_val == 1:
             voice_meta = extract_song_meta(
                 song, default_source=default_source, br=320, artist_sep=" / "
+            )
+            logger.info(
+                f"{LOG_PREFIX}[点歌] 开始语音切片发送: 《{voice_meta['title']}》- {voice_meta['artist']} (source={voice_meta['source']}, br=320)"
             )
             temp_file: str | None = None
             try:
@@ -218,7 +233,11 @@ class MusicSender:
             try:
                 await self.send_as_file(event, song_meta)
             except Exception as e:
-                logger.error(f"{LOG_PREFIX}[点歌] 文件方式发送失败: {e}", exc_info=True)
+                err_desc = f"{type(e).__name__}: {e}" if str(e) else type(e).__name__
+                logger.error(
+                    f"{LOG_PREFIX}[点歌] 文件方式发送失败 (《{song_meta['title']}》- {song_meta['artist']}): {err_desc}",
+                    exc_info=True,
+                )
                 await event.send(
                     event.plain_result("发送音乐文件失败惹，请稍后再试试叭qwq")
                 )
@@ -455,8 +474,13 @@ class MusicSender:
                 msg_id = await self.send_search_result_msg(event, message, image_url)
                 results = results[: len(render_songs)]
             except Exception as e:
+                err_desc = (
+                    "渲染超时 (15s)"
+                    if isinstance(e, asyncio.TimeoutError)
+                    else (f"{type(e).__name__}: {e}" if str(e) else type(e).__name__)
+                )
                 logger.warning(
-                    f"{LOG_PREFIX}[点歌] 搜索结果图片渲染失败，已自动回退为文字列表: {e}"
+                    f"{LOG_PREFIX}[点歌] 搜索结果图片渲染失败，已自动回退为文字列表: {err_desc}"
                 )
                 msg_id = await self.send_search_result_msg(event, message)
 
